@@ -7,7 +7,7 @@ El proyecto será desarrollado utilizando **HTML, CSS y JavaScript**, trabajando
 
 ---
 
-## 🎯 Objetivo
+##  Objetivo
 
 Crear una aplicación web que permita al usuario ingresar una función matemática, seleccionar su tipo y obtener:
 
@@ -20,11 +20,11 @@ Crear una aplicación web que permita al usuario ingresar una función matemáti
 
 ---
 
-# 📚 Tipos de funciones
+#  Tipos de funciones
 
 La calculadora debe trabajar, como mínimo, con los siguientes tipos:
 
-### 1. 📈 Funciones lineales
+### 1.  Funciones lineales
 
 Forma general:
 
@@ -45,7 +45,7 @@ Debe permitir:
 
 ---
 
-### 2. 📐 Funciones cuadráticas
+### 2.  Funciones cuadráticas
 
 Forma general:
 
@@ -67,7 +67,7 @@ Debe permitir:
 
 ---
 
-### 3. 🔢 Funciones polinomiales
+### 3. Funciones polinomiales
 
 Ejemplo:
 
@@ -106,7 +106,7 @@ Debe permitir:
 
 ---
 
-### 5. 📊 Funciones trigonométricas
+### 5.  Funciones trigonométricas
 
 Debe incluir funciones como:
 
@@ -134,7 +134,7 @@ Debe permitir:
 
 ---
 
-# 📊 Gráficas
+# Gráficas
 
 La calculadora debe contar con un sistema de gráficas que permita visualizar las funciones.
 
@@ -153,7 +153,7 @@ Se puede utilizar una biblioteca de JavaScript para facilitar la generación de 
 
 ---
 
-# 🧠 Sistema de resolución
+# Sistema de resolución
 
 La aplicación no debe limitarse a mostrar únicamente el resultado.
 
@@ -173,7 +173,7 @@ La cantidad de procedimiento dependerá del tipo de función.
 
 ---
 
-# 🖥️ Interfaz
+#  Interfaz
 
 La interfaz debe ser:
 
@@ -183,163 +183,8 @@ La interfaz debe ser:
 * Fácil de utilizar.
 * Compatible con computadora y celular.
 
-Debe existir una sección donde el usuario pueda:
 
-1. Seleccionar el tipo de función.
-2. Introducir la función.
-3. Presionar el botón de resolver.
-4. Ver el procedimiento.
-5. Ver el resultado.
-6. Ver la gráfica.
-
----
-
-# 🗂️ Estructura sugerida
-
-```text
-Calculadora/
-│
-├── index.html
-│
-├── CSS/
-│   └── style.css
-│
-├── JS/
-│   ├── main.js
-│   ├── lineales.js
-│   ├── cuadraticas.js
-│   ├── polinomiales.js
-│   ├── racionales.js
-│   └── trigonometricas.js
-│
-├── README.md
-│
-└── assets/
-    └── ...
-```
-
-La estructura puede modificarse conforme avance el proyecto.
-
----
-
-# 👥 Trabajo en equipo
-
-Cada integrante puede encargarse de un módulo específico.
-
-### Módulos principales
-
-* [ ] Interfaz principal.
-* [ ] Funciones lineales.
-* [ ] Funciones cuadráticas.
-* [ ] Funciones polinomiales.
-* [ ] Funciones racionales.
-* [ ] Funciones trigonométricas.
-* [ ] Sistema de gráficas.
-* [ ] Validación de entradas.
-* [ ] Diseño responsive.
-* [ ] Integración de todos los módulos.
-* [ ] Pruebas finales.
-
----
-
-# 🔀 Git y GitHub
-
-Cada integrante debe trabajar utilizando Git.
-
-### Flujo recomendado
-
-```bash
-git pull
-```
-
-Crear una rama para trabajar:
-
-```bash
-git checkout -b nombre-del-modulo
-```
-
-Ejemplo:
-
-```bash
-git checkout -b funciones-cuadraticas
-```
-
-Después de realizar cambios:
-
-```bash
-git add .
-git commit -m "Implementa funciones cuadráticas"
-git push origin nombre-del-modulo
-```
-
-Posteriormente se realizará un **Pull Request** para integrar los cambios a la rama principal.
-
----
-
-# 🧪 Pruebas
-
-Cada módulo debe probarse antes de integrarlo.
-
-Se deben comprobar:
-
-* Funciones válidas.
-* Funciones inválidas.
-* Valores negativos.
-* Cero.
-* Decimales.
-* Valores muy grandes.
-* Errores matemáticos.
-* División entre cero.
-* Discontinuidades.
-* Diferentes rangos para las gráficas.
-
----
-
-# 🚀 Fases del proyecto
-
-## Fase 1 — Estructura
-
-* [ ] Crear repositorio.
-* [ ] Crear estructura del proyecto.
-* [ ] Crear interfaz inicial.
-* [ ] Configurar Git.
-
-## Fase 2 — Calculadoras
-
-* [ ] Lineales.
-* [ ] Cuadráticas.
-* [ ] Polinomiales.
-* [ ] Racionales.
-* [ ] Trigonométricas.
-
-## Fase 3 — Gráficas
-
-* [ ] Implementar sistema de gráficas.
-* [ ] Conectar cada tipo de función.
-* [ ] Ajustar escalas y rangos.
-* [ ] Manejar discontinuidades.
-
-## Fase 4 — Integración
-
-* [ ] Unificar módulos.
-* [ ] Validar entradas.
-* [ ] Corregir errores.
-* [ ] Mejorar interfaz.
-* [ ] Hacer responsive.
-
-## Fase 5 — Pruebas finales
-
-* [ ] Probar todos los tipos de funciones.
-* [ ] Revisar resultados matemáticos.
-* [ ] Revisar gráficas.
-* [ ] Probar en computadora.
-* [ ] Probar en celular.
-* [ ] Revisar código.
-* [ ] Preparar presentación.
-
----
-
-# ✅ Resultado esperado
+#  Resultado esperado
 
 Al finalizar, tendremos una **calculadora matemática web completa** capaz de resolver y representar gráficamente:
 
