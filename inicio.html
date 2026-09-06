@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#071329">
+<title>MathGraph Studio · Matemática interactiva</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/inicio.css">
+</head>
+<body>
+<div class="fun-cursor" id="funCursor"><span id="cursorEmoji">✨</span></div>
+<div class="ambient ambient-a"></div><div class="ambient ambient-b"></div>
+<div class="app-shell">
+  <header class="topbar glass">
+    <div class="brand">
+      <div class="brand-mark"><span>∿</span><i></i></div>
+      <div><h1>Math<span>Graph</span></h1><small>Laboratorio matemático interactivo</small></div>
+    </div>
+    <div class="top-actions">
+      <div class="status-pill"><span class="status-dot"></span> Motor matemático activo</div>
+      <button class="icon-btn magnetic" id="themeToggle" title="Cambiar tema"><span class="theme-sun"></span></button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar glass">
+      <div class="project-card"><span class="project-label">PROYECTO</span><b>Fin de Semestre</b><span class="project-line"></span></div>
+      <nav class="tabs">
+        <button class="tab-btn active magnetic" data-view="calc"><span class="nav-icon">⌘</span><span>Calculadora</span></button>
+        <button class="tab-btn magnetic" data-view="graphing"><span class="nav-icon">∿</span><span>Graficador</span></button>
+        <button class="tab-btn magnetic" data-view="solver"><span class="nav-icon">Σ</span><span>Resolver paso a paso</span></button>
+        <button class="tab-btn magnetic" data-view="lessons"><span class="nav-icon">✦</span><span>Aprende</span></button>
+        <button class="tab-btn magnetic" data-view="formulas"><span class="nav-icon">ƒ</span><span>Fórmulas</span></button>
+        <button class="tab-btn magnetic" data-view="games"><span class="nav-icon">◇</span><span>Juegos</span></button>
+        <button class="tab-btn magnetic" data-view="museum"><span class="nav-icon">◈</span><span>Museo</span></button>
+        <button class="tab-btn magnetic" data-view="interactive"><span class="nav-icon">✣</span><span>Curva interactiva</span></button>
+      </nav>
+      <div class="sidebar-note"><div class="note-line"></div><p>Las matemáticas son el lenguaje con el que describes el universo.</p></div>
+    </aside>
+
+    <main>
+      <!-- CALCULADORA -->
+      <section class="view active" id="view-calc">
+        <div class="hero glass glow-card">
+          <div><span class="eyebrow">MATH ENGINE / 01</span><h2>Calculadora de funciones</h2><p>Analiza, evalúa y visualiza funciones con una experiencia inspirada en herramientas de geometría dinámica.</p></div>
+          <div class="hero-orbit"><span></span><b>f(x)</b></div>
+        </div>
+        <div class="type-grid">
+          <button class="type-chip active magnetic" data-type="linear"><b>01</b><span>Lineal</span><small>ax + b</small></button>
+          <button class="type-chip magnetic" data-type="quadratic"><b>02</b><span>Cuadrática</span><small>ax² + bx + c</small></button>
+          <button class="type-chip magnetic" data-type="polynomial"><b>03</b><span>Polinomial</span><small>Σ aₙxⁿ</small></button>
+          <button class="type-chip magnetic" data-type="rational"><b>04</b><span>Racional</span><small>P(x) / Q(x)</small></button>
+          <button class="type-chip magnetic" data-type="trig"><b>05</b><span>Trigonométrica</span><small>sin · cos · tan</small></button>
+        </div>
+        <div class="grid-calc">
+          <div class="panel glass">
+            <div class="section-title"><div><span class="eyebrow">ENTRADA</span><h3>Define tu función</h3></div><span class="live-badge">LIVE</span></div>
+            <p class="sub">Usa <b>x</b> como variable. También se aceptan potencias, funciones y multiplicación implícita.</p>
+            <div id="inputs-linear" class="type-panel"><div class="field"><label>f(x)</label><input class="input" id="lin-expr" value="2x - 4"></div></div>
+            <div id="inputs-quadratic" class="type-panel hidden"><div class="field"><label>f(x)</label><input class="input" id="quad-expr" value="x^2 - 5x + 6"></div></div>
+            <div id="inputs-polynomial" class="type-panel hidden"><div class="field"><label>f(x)</label><input class="input" id="poly-expr" value="x^3 - 4x^2 + x + 6"></div></div>
+            <div id="inputs-rational" class="type-panel hidden"><div class="field"><label>Numerador p(x)</label><input class="input" id="rat-num" value="x - 2"></div><div class="field"><label>Denominador q(x)</label><input class="input" id="rat-den" value="x^2 - 9"></div></div>
+            <div id="inputs-trig" class="type-panel hidden"><div class="field"><label>Tipo</label><select class="input" id="trig-kind"><option value="sin">seno</option><option value="cos">coseno</option><option value="tan">tangente</option></select></div><div class="field-row3"><div><label>A</label><input class="input" id="trig-a" value="2"></div><div><label>B</label><input class="input" id="trig-b" value="1"></div><div><label>C</label><input class="input" id="trig-c" value="0"></div></div><div class="field"><label>D</label><input class="input" id="trig-d" value="0"></div></div>
+            <div class="field"><label>Evaluar en x =</label><input class="input" id="eval-x" value="2"></div>
+            <button class="primary-btn magnetic" id="btnAnalyze"><span>Calcular y graficar</span><i>→</i></button>
+            <div class="error-box" id="calcError"></div>
+            <div class="results-list" id="resultsList"></div>
+          </div>
+          <div class="panel graph-panel glass"><div class="section-title"><div><span class="eyebrow">VISUALIZACIÓN</span><h3>Plano cartesiano</h3></div><span class="graph-readout" id="graphReadout">x: 0 · y: 0</span></div><div class="canvas-wrap"><canvas id="calcCanvas"></canvas><div class="canvas-controls"><button class="icon-btn magnetic" id="calcZoomIn">+</button><button class="icon-btn magnetic" id="calcZoomOut">−</button><button class="icon-btn magnetic" id="calcReset">↺</button></div><div class="canvas-hint">Arrastra · rueda para zoom · mueve el cursor</div></div></div>
+        </div>
+      </section>
+
+      <!-- GRAFICADOR UNIVERSAL -->
+      <section class="view" id="view-graphing">
+        <div class="hero glass glow-card"><div><span class="eyebrow">DYNAMIC GEOMETRY / 02</span><h2>Graficador universal</h2><p>Escribe una función cartesiana, polar o paramétrica. El motor detecta automáticamente la notación.</p></div><div class="hero-orbit"><span></span><b>r(θ)</b></div></div>
+        <div class="graphing-grid">
+          <div class="panel glass control-panel">
+            <div class="section-title"><div><span class="eyebrow">EXPRESIÓN</span><h3>Entrada matemática</h3></div></div>
+            <div class="field"><label>Modo</label><select class="input" id="graphMode"><option value="auto">Auto detectar</option><option value="cartesian">Cartesiana y = f(x)</option><option value="polar">Polar r = f(θ)</option><option value="parametric">Paramétrica x(t), y(t)</option></select></div>
+            <div class="field"><label>Ecuación</label><textarea class="input equation-input" id="universalExpr" spellcheck="false">r² = 8 cos(2θ)</textarea></div>
+            <div class="quick-chips"><button class="mini-chip" data-expr="r² = 8 cos(2θ)">Lemniscata</button><button class="mini-chip" data-expr="r = 2(1 + cos(θ))">Cardioide</button><button class="mini-chip" data-expr="y = sin(x)">Seno</button><button class="mini-chip" data-expr="x = 3cos(t), y = 2sin(t)">Elipse</button></div>
+            <div class="field-row"><div><label>t / θ mín.</label><input class="input" id="graphMin" value="0"></div><div><label>t / θ máx.</label><input class="input" id="graphMax" value="2pi"></div></div>
+            <div class="field"><label>Calidad <output id="qualityValue">1200</output></label><input class="range" id="graphQuality" type="range" min="300" max="3000" step="100" value="1200"></div>
+            <div class="btn-row"><button class="primary-btn magnetic" id="universalPlot">Graficar <i>→</i></button><button class="secondary-btn magnetic" id="universalClear">Limpiar</button></div>
+            <div class="hint-card"><b>Formatos admitidos</b><span>y = x² − 4x + 3</span><span>r = 2cos(3θ)</span><span>r² = 8cos(2θ)</span><span>x = 3cos(t), y = 2sin(t)</span></div>
+          </div>
+          <div class="panel glass graph-panel"><div class="section-title"><div><span class="eyebrow">GEO VIEW</span><h3>Vista dinámica</h3></div><span class="graph-readout" id="universalMode">AUTO</span></div><div class="canvas-wrap tall"><canvas id="universalCanvas"></canvas><div class="canvas-controls"><button class="icon-btn" id="univZoomIn">+</button><button class="icon-btn" id="univZoomOut">−</button><button class="icon-btn" id="univReset">↺</button></div><div class="canvas-hint">Navegación dinámica estilo geometría gráfica</div></div><div class="equation-banner" id="universalInfo">Esperando una expresión…</div></div>
+        </div>
+      </section>
+
+      <!-- SOLVER -->
+      <section class="view" id="view-solver">
+        <div class="hero glass glow-card"><div><span class="eyebrow">STEP SOLVER / 03</span><h2>Aprende a resolver</h2><p>Introduce una operación o problema. MathGraph identifica el tipo y construye una explicación paso a paso.</p></div><div class="hero-orbit"><span></span><b>1→2→3</b></div></div>
+        <div class="solver-grid">
+          <div class="panel glass"><div class="section-title"><div><span class="eyebrow">PROBLEMA</span><h3>¿Qué quieres resolver?</h3></div></div><textarea class="input big-input" id="solverInput" spellcheck="false" placeholder="Ejemplos:\n2(3+4)^2 - 5\nx² - 5x + 6 = 0\n2x + 7 = 19\n(3/4) + (5/8)"></textarea><div class="quick-chips solver-examples"><button class="mini-chip" data-solve="2(3+4)^2 - 5">Operación</button><button class="mini-chip" data-solve="2x + 7 = 19">Lineal</button><button class="mini-chip" data-solve="x² - 5x + 6 = 0">Cuadrática</button><button class="mini-chip" data-solve="(3/4) + (5/8)">Fracción</button></div><button class="primary-btn magnetic" id="solverRun">Resolver paso a paso <i>→</i></button><div class="solver-error" id="solverError"></div></div>
+          <div class="panel glass"><div class="section-title"><div><span class="eyebrow">EXPLICACIÓN</span><h3 id="solverTitle">Listo para enseñar</h3></div><span class="live-badge">STEP BY STEP</span></div><div class="steps-timeline" id="solverSteps"><div class="empty-state"><span class="empty-symbol">Σ</span><b>Tu solución aparecerá aquí</b><small>Escribe un problema y pulsa resolver.</small></div></div></div>
+        </div>
+      </section>
+
+      <!-- APRENDE -->
+      <section class="view" id="view-lessons">
+        <div class="hero glass glow-card">
+          <div><span class="eyebrow">MATH ACADEMY / 04</span><h2>Aprende matemáticas de verdad</h2><p>Lecciones ampliadas, ejemplos guiados, mini ejercicios y videos para pasar de “sé la fórmula” a “sé cuándo y cómo usarla”.</p></div>
+          <div class="hero-orbit"><span></span><b>LEARN</b></div>
+        </div>
+        <div class="learning-road glass">
+          <div><span>①</span><b>Entiende la idea</b><small>Lee el concepto y la razón detrás del procedimiento.</small></div>
+          <div><span>②</span><b>Observa un ejemplo</b><small>Sigue cada transformación sin saltarte pasos.</small></div>
+          <div><span>③</span><b>Practica</b><small>Resuelve el mini ejercicio y recibe una explicación.</small></div>
+          <div><span>④</span><b>Refuerza</b><small>Ve un video y vuelve a intentarlo.</small></div>
+        </div>
+        <div class="lessons-grid" id="lessonsGrid"></div>
+        <div id="lessonDetail"></div>
+        <div class="video-learning glass">
+          <div class="section-title"><div><span class="eyebrow">VIDEOS RECOMENDADOS</span><h3>Aprende con apoyo visual</h3></div><span class="live-badge">YOUTUBE</span></div>
+          <div class="video-grid">
+            <a class="video-card magnetic" href="https://www.youtube.com/watch?v=mnDo5mWjfQ0" target="_blank" rel="noopener"><span class="video-icon">▶</span><div><b>Ecuaciones lineales</b><small>Khan Academy en Español · explicación guiada</small></div><i>↗</i></a>
+            <a class="video-card magnetic" href="https://www.youtube.com/watch?v=rldGZ2jgr5A" target="_blank" rel="noopener"><span class="video-icon">▶</span><div><b>Círculo unitario</b><small>Khan Academy en Español · trigonometría</small></div><i>↗</i></a>
+            <a class="video-card magnetic" href="https://www.youtube.com/results?search_query=Khan+Academy+en+Español+ecuaciones+cuadráticas" target="_blank" rel="noopener"><span class="video-icon">▶</span><div><b>Ecuaciones cuadráticas</b><small>Más explicaciones de Khan Academy en Español</small></div><i>↗</i></a>
+          </div>
+        </div>
+      </section>
+
+      <!-- FORMULAS -->
+      <section class="view" id="view-formulas">
+        <div class="hero glass glow-card"><div><span class="eyebrow">FORMULA VAULT / 05</span><h2>Biblioteca de fórmulas</h2><p>Una referencia rápida de las fórmulas que aparecen en MathGraph Studio y de las que necesitas para trabajar con sus herramientas.</p></div><div class="hero-orbit"><span></span><b>ƒ(x)</b></div></div>
+        <div class="formula-toolbar glass"><input class="input" id="formulaSearch" placeholder="Buscar: pendiente, cuadrática, área, trigonometría…"><div class="formula-filters"><button class="mini-chip active" data-formula-cat="all">Todas</button><button class="mini-chip" data-formula-cat="algebra">Álgebra</button><button class="mini-chip" data-formula-cat="functions">Funciones</button><button class="mini-chip" data-formula-cat="geometry">Geometría</button><button class="mini-chip" data-formula-cat="trig">Trigonometría</button><button class="mini-chip" data-formula-cat="calculus">Cálculo</button></div></div>
+        <div class="formula-grid" id="formulaGrid"></div>
+      </section>
+
+      <!-- GAMES -->
+      <section class="view" id="view-games">
+        <div class="hero glass glow-card"><div><span class="eyebrow">MATH ARCADE / 04</span><h2>Retos matemáticos</h2><p>Entrena cálculo, álgebra y razonamiento con niveles, rachas y soluciones explicadas.</p></div><div class="hero-orbit"><span></span><b>+XP</b></div></div>
+        <div class="games-top"><div class="score-badges"><div class="score-card glass"><span>Correctos</span><b id="scoreCorrect">0</b></div><div class="score-card glass"><span>Errores</span><b id="scoreWrong">0</b></div><div class="score-card glass"><span>Racha</span><b id="scoreStreak">0</b></div><div class="score-card glass"><span>XP</span><b id="scoreXP">0</b></div></div><div class="level-select"><button class="secondary-btn active magnetic" data-level="1">Fácil</button><button class="secondary-btn magnetic" data-level="2">Medio</button><button class="secondary-btn magnetic" data-level="3">Difícil</button></div></div>
+        <div class="game-modes glass">
+          <span class="eyebrow">MODO DE RETO</span>
+          <button class="mini-chip active" data-game-mode="mixed">Mixto</button>
+          <button class="mini-chip" data-game-mode="mental">Cálculo mental</button>
+          <button class="mini-chip" data-game-mode="functions">Funciones</button>
+          <button class="mini-chip" data-game-mode="percent">Porcentajes</button>
+          <button class="mini-chip" data-game-mode="logic">Lógica</button>
+          <button class="mini-chip" data-game-mode="sequence">Secuencias</button>
+        </div>
+        <div class="problem-card glass"><span class="eyebrow" id="gameCategory">RETO</span><div class="problem-text" id="gameProblem">Genera un problema para comenzar</div><div class="answer-row"><input class="input" id="gameAnswer" placeholder="Escribe tu respuesta…"><button class="primary-btn magnetic" id="gameSubmit">Verificar</button></div><div class="game-actions"><button class="secondary-btn magnetic" id="gameNew">Nuevo problema</button><button class="secondary-btn danger magnetic" id="gameGiveUp">Ver solución</button></div><div class="feedback-banner" id="gameFeedback"></div><div class="steps-box" id="gameSteps"></div></div>
+      </section>
+
+      <!-- MUSEO -->
+      <section class="view" id="view-museum">
+        <div class="hero glass glow-card"><div><span class="eyebrow">CURVE MUSEUM / 05</span><h2>Museo de curvas</h2><p>Explora curvas clásicas, polares, paramétricas y figuras matemáticas. También puedes copiar cualquier ecuación al graficador.</p></div><div class="hero-orbit"><span></span><b>∞</b></div></div>
+        <div class="museum-toolbar"><div class="search-wrap"><span>⌕</span><input class="input" id="museumSearch" placeholder="Buscar curva, ecuación o categoría…"></div><span class="museum-count" id="museumCount"></span></div>
+        <div class="museum-grid" id="museumGrid"></div>
+      </section>
+      <div class="modal-overlay" id="museumModal"><div class="modal-box glass"><button class="icon-btn modal-close" id="museumModalClose">×</button><span class="eyebrow">CURVA</span><h2 id="museumModalName"></h2><p class="mono" id="museumModalEq"></p><canvas id="museumModalCanvas"></canvas><div class="modal-actions"><button class="primary-btn" id="museumUseGraph">Abrir en graficador</button></div></div></div>
+
+      <!-- INTERACTIVE -->
+      <section class="view" id="view-interactive">
+        <div class="hero glass glow-card"><div><span class="eyebrow">INTERACTIVE CURVE / 06</span><h2>Dale forma a la curva</h2><p>Manipula puntos de control y observa cómo se reconstruye el polinomio de interpolación en tiempo real.</p></div><div class="hero-orbit"><span></span><b>f(x)</b></div></div>
+        <div class="grid-calc"><div class="panel glass"><div class="section-title"><div><span class="eyebrow">CONTROL</span><h3>Parámetros</h3></div></div><div class="field"><label>Curva inicial</label><select class="input" id="interactivePreset"><option value="quad">Parábola: x²/2</option><option value="sin">Onda: 3sin(x)</option><option value="flat">Línea plana</option><option value="cubic">Cúbica: x³/8</option></select></div><button class="primary-btn magnetic" id="interactiveApply">Aplicar curva inicial <i>→</i></button><button class="secondary-btn full magnetic" id="interactiveReset">Reiniciar puntos</button><div class="field"><label>Puntos de control <output id="pointsValue">7</output></label><input class="range" id="interactivePoints" type="range" min="4" max="10" value="7"></div></div><div class="panel glass graph-panel"><div class="section-title"><div><span class="eyebrow">MANIPULACIÓN</span><h3>Curva viva</h3></div></div><div class="canvas-wrap"><canvas id="interactiveCanvas"></canvas><div class="canvas-hint">Arrastra los nodos para deformar la curva</div></div><div class="equation-banner" id="interactiveEq">f(x) = —</div></div></div>
+      </section>
+    </main>
+  </div>
+  <footer>MathGraph Studio · Calculadora · Graficador · Resolver · Aprende · Fórmulas · Juegos · Museo</footer>
+</div>
+<div class="toast glass" id="toast"></div>
+<script src="js/parser.js"></script><script src="js/calculator.js"></script><script src="js/graph.js"></script><script src="js/solver.js"></script><script src="js/lessons.js"></script><script src="js/formulas.js"></script><script src="js/games.js"></script><script src="js/museum.js"></script><script src="js/interactive.js"></script><script src="js/app.js"></script>
+</body>
+</html>
