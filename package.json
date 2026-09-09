@@ -1,0 +1,24 @@
+{
+  "name": "calculadora-que-grafica",
+  "version": "1.0.0",
+  "description": "Desarrollar una calculadora matemática capaz de **resolver y graficar diferentes tipos de funciones**, mostrando los resultados de manera clara e interactiva.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/carlitosismatul-ai/Calculadora-que-grafica.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/carlitosismatul-ai/Calculadora-que-grafica/issues"
+  },
+  "homepage": "https://github.com/carlitosismatul-ai/Calculadora-que-grafica#readme",
+  "devDependencies": {
+    "vite": "^8.2.2"
+  }
+}
