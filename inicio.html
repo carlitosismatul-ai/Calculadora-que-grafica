@@ -32,11 +32,8 @@
         <button class="tab-btn active magnetic" data-view="calc"><span class="nav-icon">⌘</span><span>Calculadora</span></button>
         <button class="tab-btn magnetic" data-view="graphing"><span class="nav-icon">∿</span><span>Graficador</span></button>
         <button class="tab-btn magnetic" data-view="solver"><span class="nav-icon">Σ</span><span>Resolver paso a paso</span></button>
-        <button class="tab-btn magnetic" data-view="lessons"><span class="nav-icon">✦</span><span>Aprende</span></button>
         <button class="tab-btn magnetic" data-view="formulas"><span class="nav-icon">ƒ</span><span>Fórmulas</span></button>
         <button class="tab-btn magnetic" data-view="games"><span class="nav-icon">◇</span><span>Juegos</span></button>
-        <button class="tab-btn magnetic" data-view="museum"><span class="nav-icon">◈</span><span>Museo</span></button>
-        <button class="tab-btn magnetic" data-view="interactive"><span class="nav-icon">✣</span><span>Curva interactiva</span></button>
       </nav>
       <div class="sidebar-note"><div class="note-line"></div><p>Las matemáticas son el lenguaje con el que describes el universo.</p></div>
     </aside>
@@ -100,40 +97,16 @@
         </div>
       </section>
 
-      <!-- APRENDE -->
-      <section class="view" id="view-lessons">
-        <div class="hero glass glow-card">
-          <div><span class="eyebrow">MATH ACADEMY / 04</span><h2>Aprende matemáticas de verdad</h2><p>Lecciones ampliadas, ejemplos guiados, mini ejercicios y videos para pasar de “sé la fórmula” a “sé cuándo y cómo usarla”.</p></div>
-          <div class="hero-orbit"><span></span><b>LEARN</b></div>
-        </div>
-        <div class="learning-road glass">
-          <div><span>①</span><b>Entiende la idea</b><small>Lee el concepto y la razón detrás del procedimiento.</small></div>
-          <div><span>②</span><b>Observa un ejemplo</b><small>Sigue cada transformación sin saltarte pasos.</small></div>
-          <div><span>③</span><b>Practica</b><small>Resuelve el mini ejercicio y recibe una explicación.</small></div>
-          <div><span>④</span><b>Refuerza</b><small>Ve un video y vuelve a intentarlo.</small></div>
-        </div>
-        <div class="lessons-grid" id="lessonsGrid"></div>
-        <div id="lessonDetail"></div>
-        <div class="video-learning glass">
-          <div class="section-title"><div><span class="eyebrow">VIDEOS RECOMENDADOS</span><h3>Aprende con apoyo visual</h3></div><span class="live-badge">YOUTUBE</span></div>
-          <div class="video-grid">
-            <a class="video-card magnetic" href="https://www.youtube.com/watch?v=mnDo5mWjfQ0" target="_blank" rel="noopener"><span class="video-icon">▶</span><div><b>Ecuaciones lineales</b><small>Khan Academy en Español · explicación guiada</small></div><i>↗</i></a>
-            <a class="video-card magnetic" href="https://www.youtube.com/watch?v=rldGZ2jgr5A" target="_blank" rel="noopener"><span class="video-icon">▶</span><div><b>Círculo unitario</b><small>Khan Academy en Español · trigonometría</small></div><i>↗</i></a>
-            <a class="video-card magnetic" href="https://www.youtube.com/results?search_query=Khan+Academy+en+Español+ecuaciones+cuadráticas" target="_blank" rel="noopener"><span class="video-icon">▶</span><div><b>Ecuaciones cuadráticas</b><small>Más explicaciones de Khan Academy en Español</small></div><i>↗</i></a>
-          </div>
-        </div>
-      </section>
-
       <!-- FORMULAS -->
       <section class="view" id="view-formulas">
-        <div class="hero glass glow-card"><div><span class="eyebrow">FORMULA VAULT / 05</span><h2>Biblioteca de fórmulas</h2><p>Una referencia rápida de las fórmulas que aparecen en MathGraph Studio y de las que necesitas para trabajar con sus herramientas.</p></div><div class="hero-orbit"><span></span><b>ƒ(x)</b></div></div>
+        <div class="hero glass glow-card"><div><span class="eyebrow">FORMULA VAULT / 04</span><h2>Biblioteca de fórmulas</h2><p>Una referencia rápida de las fórmulas que aparecen en MathGraph Studio y de las que necesitas para trabajar con sus herramientas.</p></div><div class="hero-orbit"><span></span><b>ƒ(x)</b></div></div>
         <div class="formula-toolbar glass"><input class="input" id="formulaSearch" placeholder="Buscar: pendiente, cuadrática, área, trigonometría…"><div class="formula-filters"><button class="mini-chip active" data-formula-cat="all">Todas</button><button class="mini-chip" data-formula-cat="algebra">Álgebra</button><button class="mini-chip" data-formula-cat="functions">Funciones</button><button class="mini-chip" data-formula-cat="geometry">Geometría</button><button class="mini-chip" data-formula-cat="trig">Trigonometría</button><button class="mini-chip" data-formula-cat="calculus">Cálculo</button></div></div>
         <div class="formula-grid" id="formulaGrid"></div>
       </section>
 
       <!-- GAMES -->
       <section class="view" id="view-games">
-        <div class="hero glass glow-card"><div><span class="eyebrow">MATH ARCADE / 04</span><h2>Retos matemáticos</h2><p>Entrena cálculo, álgebra y razonamiento con niveles, rachas y soluciones explicadas.</p></div><div class="hero-orbit"><span></span><b>+XP</b></div></div>
+        <div class="hero glass glow-card"><div><span class="eyebrow">MATH ARCADE / 05</span><h2>Retos matemáticos</h2><p>Entrena cálculo, álgebra y razonamiento con niveles, rachas y soluciones explicadas.</p></div><div class="hero-orbit"><span></span><b>+XP</b></div></div>
         <div class="games-top"><div class="score-badges"><div class="score-card glass"><span>Correctos</span><b id="scoreCorrect">0</b></div><div class="score-card glass"><span>Errores</span><b id="scoreWrong">0</b></div><div class="score-card glass"><span>Racha</span><b id="scoreStreak">0</b></div><div class="score-card glass"><span>XP</span><b id="scoreXP">0</b></div></div><div class="level-select"><button class="secondary-btn active magnetic" data-level="1">Fácil</button><button class="secondary-btn magnetic" data-level="2">Medio</button><button class="secondary-btn magnetic" data-level="3">Difícil</button></div></div>
         <div class="game-modes glass">
           <span class="eyebrow">MODO DE RETO</span>
@@ -146,25 +119,11 @@
         </div>
         <div class="problem-card glass"><span class="eyebrow" id="gameCategory">RETO</span><div class="problem-text" id="gameProblem">Genera un problema para comenzar</div><div class="answer-row"><input class="input" id="gameAnswer" placeholder="Escribe tu respuesta…"><button class="primary-btn magnetic" id="gameSubmit">Verificar</button></div><div class="game-actions"><button class="secondary-btn magnetic" id="gameNew">Nuevo problema</button><button class="secondary-btn danger magnetic" id="gameGiveUp">Ver solución</button></div><div class="feedback-banner" id="gameFeedback"></div><div class="steps-box" id="gameSteps"></div></div>
       </section>
-
-      <!-- MUSEO -->
-      <section class="view" id="view-museum">
-        <div class="hero glass glow-card"><div><span class="eyebrow">CURVE MUSEUM / 05</span><h2>Museo de curvas</h2><p>Explora curvas clásicas, polares, paramétricas y figuras matemáticas. También puedes copiar cualquier ecuación al graficador.</p></div><div class="hero-orbit"><span></span><b>∞</b></div></div>
-        <div class="museum-toolbar"><div class="search-wrap"><span>⌕</span><input class="input" id="museumSearch" placeholder="Buscar curva, ecuación o categoría…"></div><span class="museum-count" id="museumCount"></span></div>
-        <div class="museum-grid" id="museumGrid"></div>
-      </section>
-      <div class="modal-overlay" id="museumModal"><div class="modal-box glass"><button class="icon-btn modal-close" id="museumModalClose">×</button><span class="eyebrow">CURVA</span><h2 id="museumModalName"></h2><p class="mono" id="museumModalEq"></p><canvas id="museumModalCanvas"></canvas><div class="modal-actions"><button class="primary-btn" id="museumUseGraph">Abrir en graficador</button></div></div></div>
-
-      <!-- INTERACTIVE -->
-      <section class="view" id="view-interactive">
-        <div class="hero glass glow-card"><div><span class="eyebrow">INTERACTIVE CURVE / 06</span><h2>Dale forma a la curva</h2><p>Manipula puntos de control y observa cómo se reconstruye el polinomio de interpolación en tiempo real.</p></div><div class="hero-orbit"><span></span><b>f(x)</b></div></div>
-        <div class="grid-calc"><div class="panel glass"><div class="section-title"><div><span class="eyebrow">CONTROL</span><h3>Parámetros</h3></div></div><div class="field"><label>Curva inicial</label><select class="input" id="interactivePreset"><option value="quad">Parábola: x²/2</option><option value="sin">Onda: 3sin(x)</option><option value="flat">Línea plana</option><option value="cubic">Cúbica: x³/8</option></select></div><button class="primary-btn magnetic" id="interactiveApply">Aplicar curva inicial <i>→</i></button><button class="secondary-btn full magnetic" id="interactiveReset">Reiniciar puntos</button><div class="field"><label>Puntos de control <output id="pointsValue">7</output></label><input class="range" id="interactivePoints" type="range" min="4" max="10" value="7"></div></div><div class="panel glass graph-panel"><div class="section-title"><div><span class="eyebrow">MANIPULACIÓN</span><h3>Curva viva</h3></div></div><div class="canvas-wrap"><canvas id="interactiveCanvas"></canvas><div class="canvas-hint">Arrastra los nodos para deformar la curva</div></div><div class="equation-banner" id="interactiveEq">f(x) = —</div></div></div>
-      </section>
     </main>
   </div>
-  <footer>MathGraph Studio · Calculadora · Graficador · Resolver · Aprende · Fórmulas · Juegos · Museo</footer>
+  <footer>MathGraph Studio · Calculadora · Graficador · Resolver · Fórmulas · Juegos</footer>
 </div>
 <div class="toast glass" id="toast"></div>
-<script src="js/parser.js"></script><script src="js/calculator.js"></script><script src="js/graph.js"></script><script src="js/solver.js"></script><script src="js/lessons.js"></script><script src="js/formulas.js"></script><script src="js/games.js"></script><script src="js/museum.js"></script><script src="js/interactive.js"></script><script src="js/app.js"></script>
+<script src="js/parser.js"></script><script src="js/calculator.js"></script><script src="js/graph.js"></script><script src="js/solver.js"></script><script src="js/formulas.js"></script><script src="js/games.js"></script><script src="js/app.js"></script>
 </body>
 </html>
