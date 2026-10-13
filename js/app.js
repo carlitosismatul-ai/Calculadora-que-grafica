@@ -1,116 +1,1506 @@
-(function(){
- const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
- let toastTimer;function toast(m){const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>e.classList.remove('show'),2200)}
- // cursor divertido contextual
- const cursor=$('#funCursor'),cursorEmoji=$('#cursorEmoji'); let mx=-80,my=-80,cx=-80,cy=-80;
- const cursorMap=[
-   ['#view-calc','🧮'],['#view-graphing','📈'],['#view-solver','🧠'],['#view-lessons','📚'],
-   ['#view-formulas','📐'],['#view-games','🎮'],['#view-museum','🔭'],['#view-interactive','🪄']
- ];
- function cursorAt(x,y){let emoji='✨';const el=document.elementFromPoint(x,y);
-   if(el){ if(el.closest('input,textarea,select')) emoji='✏️'; else if(el.closest('button')) emoji='⚡'; else if(el.closest('a')) emoji='🎬'; else for(const [sel,e] of cursorMap){if(el.closest(sel)){emoji=e;break}}}
-   cursorEmoji.textContent=emoji;cursor.classList.toggle('is-hover',!!el?.closest('button,input,textarea,select,a,.figure-card,.panel'));
- }
- window.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;cursorAt(mx,my)});
- (function cursorLoop(){cx+=(mx-cx)*.22;cy+=(my-cy)*.22;cursor.style.left=cx+'px';cursor.style.top=cy+'px';requestAnimationFrame(cursorLoop)})();
- // micro interacción magnética
- function magnetic(){document.querySelectorAll('.magnetic').forEach(el=>{el.addEventListener('mousemove',e=>{const r=el.getBoundingClientRect(),x=e.clientX-(r.left+r.width/2),y=e.clientY-(r.top+r.height/2);el.style.transform=`translate(${x*.035}px,${y*.035}px)`});el.addEventListener('mouseleave',()=>el.style.transform='')})}
- // tema
- let dark=localStorage.getItem('mathgraph-theme')!=='light';
- function applyTheme(){document.documentElement.dataset.theme=dark?'dark':'light';localStorage.setItem('mathgraph-theme',dark?'dark':'light');setTimeout(()=>window.dispatchEvent(new Event('resize')),80);cursorEmoji.textContent=dark?'🌙':'☀️'}
- applyTheme();$('#themeToggle').onclick=()=>{dark=!dark;applyTheme()};
- // navegación
- let museumRendered=false,lessonsRendered=false,formulasRendered=false;
- $$('.tab-btn').forEach(btn=>btn.onclick=()=>{
-   $$('.tab-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
-   $$('.view').forEach(v=>v.classList.remove('active'));
-   $('#view-'+btn.dataset.view).classList.add('active');
-   window.dispatchEvent(new Event('resize'));
-   if(btn.dataset.view==='museum'&&!museumRendered)renderMuseum();
-   if(btn.dataset.view==='lessons'&&!lessonsRendered)renderLessons();
-   if(btn.dataset.view==='formulas'&&!formulasRendered)renderFormulas();
- });
- // calculadora
- const calcGraph=new Graph($('#calcCanvas'));let currentType='linear';$$('.type-chip').forEach(chip=>chip.onclick=()=>{$$('.type-chip').forEach(c=>c.classList.remove('active'));chip.classList.add('active');currentType=chip.dataset.type;$$('.type-panel').forEach(p=>p.classList.add('hidden'));$('#inputs-'+currentType).classList.remove('hidden');runCalculation()});
- $('#calcZoomIn').onclick=()=>{calcGraph.scale=Math.min(500,calcGraph.scale*1.25);calcGraph.draw()};$('#calcZoomOut').onclick=()=>{calcGraph.scale=Math.max(4,calcGraph.scale*.8);calcGraph.draw()};$('#calcReset').onclick=()=>calcGraph.reset();
- function showError(m){const e=$('#calcError');e.textContent=m?m:'';e.classList.toggle('show',!!m)}function showResults(items){$('#resultsList').innerHTML=items.map(x=>`<div class="result-row"><b>${x.label}</b><span class="val">${x.value}</span></div>`).join('')}
- function runCalculation(){showError('');calcGraph.clearCurves();calcGraph.clearPoints();calcGraph.asymptotes=[];try{let items=[],roots=[],fn=null;const ex=type=>MathEngine.compile($('#'+type).value);if(currentType==='linear'){fn=ex('lin-expr');const r=Calculator.analyzeLinear(fn);items=r.items;roots=r.roots}else if(currentType==='quadratic'){fn=ex('quad-expr');const r=Calculator.analyzeQuadratic(fn);items=r.items;roots=r.roots;if(r.vertex)calcGraph.addPoint(r.vertex.x,r.vertex.y,'#ffb020',6,'Vértice')}else if(currentType==='polynomial'){fn=ex('poly-expr');const r=Calculator.analyzePolynomial(fn);items=r.items;roots=r.roots}else if(currentType==='rational'){const p=ex('rat-num'),q=ex('rat-den');const r=Calculator.analyzeRational(p,q);fn={at:x=>{const d=q.at(x);return Math.abs(d)<1e-10?NaN:p.at(x)/d}};items=r.items;roots=r.roots;calcGraph.asymptotes=r.asymptotes}else{const kind=$('#trig-kind').value,A=+$('#trig-a').value||0,B=+$('#trig-b').value||1,C=+$('#trig-c').value||0,D=+$('#trig-d').value||0;const r=Calculator.analyzeTrig(kind,A,B,C,D);fn=r.fn;items=r.items;roots=r.roots}
-   const xv=+$('#eval-x').value;if(Number.isFinite(xv)){const y=fn.at(xv);items=[{label:`f(${Calculator.fmt(xv)})`,value:Calculator.fmt(y)},...items];if(Number.isFinite(y))calcGraph.addPoint(xv,y,'#ff2fba',5,`(${Calculator.fmt(xv)}, ${Calculator.fmt(y)})`)}showResults(items);calcGraph.addCurve(x=>fn.at(x),'#45c8ff',3);roots.filter(Number.isFinite).forEach(r=>calcGraph.addPoint(r,0,'#22d3a7',5,`x=${Calculator.fmt(r)}`));calcGraph.draw();
-  }catch(e){showError('No se pudo interpretar la expresión: '+e.message)}}
- $('#btnAnalyze').onclick=runCalculation;['lin-expr','quad-expr','poly-expr','rat-num','rat-den','trig-kind','trig-a','trig-b','trig-c','trig-d','eval-x'].forEach(id=>{const e=$('#'+id);if(e)e.addEventListener('keydown',ev=>{if(ev.key==='Enter')runCalculation()})});
- // Graficador universal
- const ug=new Graph($('#universalCanvas'),{scale:35});
- function evalBound(v){try{return MathEngine.compile(String(v)).at(0)}catch{return 0}}
- function detect(expr,mode){const n=MathEngine.normalize(expr);if(mode!=='auto')return mode;if(/r\^2\s*=/.test(n)||/^r\s*=/.test(n))return'polar';if(/x\s*=.*y\s*=/.test(n)||(/x\s*=/.test(n)&&/y\s*=/.test(n)))return'parametric';return'cartesian'}
- function parseUniversal(expr,mode){const m=detect(expr,mode),raw=MathEngine.normalize(expr);ug.clearCurves();ug.clearParametrics();ug.clearPoints();ug.asymptotes=[];let info='';if(m==='polar'){const rhs=raw.replace(/^r\^2\s*=|^r\s*=/,'');const squared=/^r\^2/.test(raw);const f=MathEngine.compile(rhs);const min=evalBound($('#graphMin').value),max=evalBound($('#graphMax').value);if(squared){ug.addParametric(t=>{const q=f.at(t);return q>=0?Math.sqrt(q)*Math.cos(t):NaN},t=>{const q=f.at(t);return q>=0?Math.sqrt(q)*Math.sin(t):NaN},min,max,'#ff3bc7',3,false);info=`Polar · ${expr} · se interpreta r = ±√(${rhs})` }else{ug.addParametric(t=>{const r=f.at(t);return Number.isFinite(r)?r*Math.cos(t):NaN},t=>{const r=f.at(t);return Number.isFinite(r)?r*Math.sin(t):NaN},min,max,'#55d9ff',3,false);info=`Polar · ${expr}`}}
-   else if(m==='parametric'){const clean=raw.replace(/^\(/,'').replace(/\)$/,'');const parts=clean.split(/,\s*(?=y\s*=)/);const xm=parts[0].match(/^x\s*=\s*(.*)$/),ym=parts[1]?.match(/^y\s*=\s*(.*)$/);if(!xm||!ym)throw new Error('Para paramétrica usa x = ..., y = ...');const fx=MathEngine.compile(xm[1]),fy=MathEngine.compile(ym[1]);ug.addParametric(t=>fx.at(t),t=>fy.at(t),evalBound($('#graphMin').value),evalBound($('#graphMax').value),'#9d73ff',3,false);info=`Paramétrica · ${expr}`}
-   else{let rhs=raw.replace(/^y\s*=\s*/,'');const f=MathEngine.compile(rhs);ug.addCurve(x=>f.at(x),'#55d9ff',3);info=`Cartesiana · y = ${rhs}`}
-   $('#universalMode').textContent=m.toUpperCase();$('#universalInfo').textContent=info;ug.fitToContent();ug.draw();}
- $('#universalPlot').onclick=()=>{try{parseUniversal($('#universalExpr').value,$('#graphMode').value)}catch(e){$('#universalInfo').textContent='Error: '+e.message;toast('Revisa la notación de la ecuación')}};$('#universalClear').onclick=()=>{ug.clearCurves();ug.clearParametrics();ug.clearPoints();$('#universalInfo').textContent='Lienzo limpiado';ug.draw()};$('#univZoomIn').onclick=()=>{ug.scale=Math.min(500,ug.scale*1.25);ug.draw()};$('#univZoomOut').onclick=()=>{ug.scale=Math.max(4,ug.scale*.8);ug.draw()};$('#univReset').onclick=()=>ug.reset();$('#graphQuality').oninput=e=>$('#qualityValue').value=e.target.value;$$('.mini-chip').filter(x=>x.dataset.expr).forEach(b=>b.onclick=()=>{$('#universalExpr').value=b.dataset.expr;parseUniversal(b.dataset.expr,'auto')});
- ug.onPointer=(p)=>$('#graphReadout').textContent=`x: ${Calculator.fmt(p.x,3)} · y: ${Calculator.fmt(p.y,3)}`;
- // resolver paso a paso — motor mejorado de FunctionLab
- function renderSolution(sol){
-   $('#solverTitle').textContent=sol.type||'Solución';
-   $('#solverSteps').innerHTML=sol.steps.map((s,i)=>`<div class="step-item" style="animation-delay:${i*.07}s"><span class="step-num">${i+1}</span><div>${s}</div></div>`).join('');
-   if(sol.roots?.length) $('#solverSteps').innerHTML+=`<div class="equation-banner">Soluciones encontradas · ${sol.roots.map(r=>Calculator.fmt(r)).join(' · ')}</div>`;
- }
- function runSolver(){
-   const err=$('#solverError');err.classList.remove('show');
-   try{const sol=Solver.solve($('#solverInput').value);renderSolution(sol)}
-   catch(e){err.textContent=e.message;err.classList.add('show')}
- }
- $('#solverRun').onclick=runSolver;
- $$('.solver-examples .mini-chip').forEach(b=>b.onclick=()=>{$('#solverInput').value=b.dataset.solve;runSolver()});
- runSolver();
+/* ==========================================================
+   MathGraph Studio
+   Aplicación principal
+   Cinco módulos: calculadora, graficador, solucionador,
+   fórmulas y juegos matemáticos.
+   Compatible con MathEngine.compile() -> objeto con .at(x)
+   ========================================================== */
 
- // aprende
- function renderLessons(){
-   const grid=$('#lessonsGrid');grid.innerHTML='';
-   Lessons.lessons.forEach(l=>{const card=document.createElement('button');card.className='lesson-card glass magnetic';card.innerHTML=`<div class="ltag">${l.tag}</div><h3>${l.title}</h3><p>${l.summary}</p><span>Ver lección →</span>`;card.onclick=()=>showLesson(l);grid.appendChild(card)});
-   lessonsRendered=true;
- }
- function showLesson(l){
-   const exerciseBank={
- 'lineal':{question:'Resuelve: 2x + 7 = 19',answer:'6',hint:'Resta 7 en ambos lados y después divide entre 2.'},
- 'cuadratica':{question:'Resuelve: x² − 5x + 6 = 0. Escribe las dos raíces separadas por coma.',answer:'2,3',hint:'Busca dos números cuyo producto sea 6 y cuya suma sea 5.'},
- 'factorizacion':{question:'Factoriza x² + 5x + 6. Escribe: (x+?)(x+?).',answer:'(x+2)(x+3)',hint:'Busca dos números que multipliquen 6 y sumen 5.'},
- 'sistemas':{question:'En x+y=10 y x−y=2, ¿cuánto vale x?',answer:'6',hint:'Suma las dos ecuaciones para eliminar y.'},
- 'dominio':{question:'¿Qué valor de x debes excluir en 1/(x−4)?',answer:'4',hint:'Haz que el denominador sea distinto de cero.'},
- 'trig-notables':{question:'¿Cuánto vale sin(30°)?',answer:'0.5',hint:'Recuerda el círculo unitario y los ángulos notables.'},
- 'racional-asintotas':{question:'En 2x/(x−4), ¿cuál es la asíntota vertical?',answer:'4',hint:'Iguala el denominador a cero.'},
- 'pendiente':{question:'Calcula m entre (1,2) y (4,11).',answer:'3',hint:'m=(y₂−y₁)/(x₂−x₁).'}
-}; const ex=exerciseBank[l.id]||{question:'Resuelve: 3x+4=19',answer:'5',hint:'Resta 4 y luego divide entre 3.'};
-   $('#lessonDetail').innerHTML=`<div class="panel glass lesson-body">
-     <div class="ltag">${l.tag}</div><h2>${l.title}</h2><p class="lesson-summary">${l.summary}</p>
-     <div class="lesson-columns"><div><h3>🧭 Cómo hacerlo</h3><ol>${l.steps.map(s=>`<li>${s}</li>`).join('')}</ol></div>
-     <div><h3>🧪 Ejemplo</h3><div class="work">${l.example.work.map(w=>`<span>${w}</span>`).join('')}</div></div></div>
-     <div class="mini-exercise"><span class="eyebrow">MINI EJERCICIO</span><h3>${ex.question}</h3><div class="answer-row"><input class="input" id="lessonAnswer" placeholder="Tu respuesta"><button class="primary-btn magnetic" id="lessonCheck">Comprobar</button></div><p id="lessonFeedback"></p><details><summary>💡 Pista</summary><p>${ex.hint}</p></details></div>
-   </div>`;
-   $('#lessonCheck').onclick=()=>{const got=$('#lessonAnswer').value.trim().replace(',','.');const ok=got===String(ex.answer).replace(',','.');$('#lessonFeedback').textContent=ok?'✅ Correcto. Ahora intenta explicarte por qué.':'❌ Aún no. Revisa la pista y vuelve a seguir los pasos.';$('#lessonFeedback').className=ok?'good':'bad'};
-   $('#lessonDetail').scrollIntoView({behavior:'smooth',block:'nearest'});
- }
- function renderFormulas(){
-   const grid=$('#formulaGrid'),search=$('#formulaSearch');function draw(){const q=search.value.toLowerCase(),cat=document.querySelector('.formula-filters .active')?.dataset.formulaCat||'all';grid.innerHTML=Formulas.formulas.filter(f=>(cat==='all'||f.cat===cat)&&(f.name+' '+f.formula+' '+f.note).toLowerCase().includes(q)).map(f=>`<article class="formula-card glass"><span class="formula-cat">${f.cat}</span><h3>${f.name}</h3><div class="formula">${f.formula}</div><p>${f.note}</p><button class="mini-chip magnetic" data-copy="${f.formula.replace(/"/g,'&quot;')}">Copiar fórmula</button></article>`).join('');grid.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>{navigator.clipboard?.writeText(b.dataset.copy);toast('Fórmula copiada ✨')})}search.oninput=draw;$$('.formula-filters .mini-chip').forEach(b=>b.onclick=()=>{$$('.formula-filters .mini-chip').forEach(x=>x.classList.remove('active'));b.classList.add('active');draw()});draw();formulasRendered=true;
- }
+(function () {
+  'use strict';
 
- // juegos ampliados
- let problem=null,level=1,gameMode='mixed',score={correct:0,wrong:0,streak:0,xp:0};
- $$('.level-select .secondary-btn').forEach(b=>b.onclick=()=>{$$('.level-select .secondary-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');level=+b.dataset.level;newProblem()});
- $$('.game-modes .mini-chip').forEach(b=>b.onclick=()=>{$$('.game-modes .mini-chip').forEach(x=>x.classList.remove('active'));b.classList.add('active');gameMode=b.dataset.gameMode;newProblem()});
- function updateScore(){$('#scoreCorrect').textContent=score.correct;$('#scoreWrong').textContent=score.wrong;$('#scoreStreak').textContent=score.streak;$('#scoreXP').textContent=score.xp}
- function renderGameSteps(title){$('#gameSteps').innerHTML=`<b>${title}</b><ol>${problem.steps.map((s,i)=>`<li style="animation-delay:${i*.08}s">${s}</li>`).join('')}</ol>`;$('#gameSteps').classList.add('show')}
- function newProblem(){problem=Games.randomProblem(level,gameMode);$('#gameCategory').textContent=problem.category;$('#gameProblem').textContent=problem.prompt;$('#gameAnswer').value='';$('#gameAnswer').disabled=false;$('#gameSubmit').disabled=false;$('#gameFeedback').className='feedback-banner';$('#gameSteps').classList.remove('show');}
- $('#gameNew').onclick=newProblem;
- $('#gameSubmit').onclick=()=>{if(!problem)return;const ok=Games.checkAnswer(problem,$('#gameAnswer').value.trim()),b=$('#gameFeedback');b.className='feedback-banner show '+(ok?'correct':'incorrect');b.textContent=ok?'🎉 ¡Correcto! +10 XP':'🧩 Casi. Puedes intentarlo otra vez o ver la solución.';if(ok){score.correct++;score.streak++;score.xp+=10+score.streak*2;renderGameSteps('Explicación paso a paso')}else{score.wrong++;score.streak=0}updateScore();if(ok){$('#gameAnswer').disabled=true;$('#gameSubmit').disabled=true}};
- $('#gameGiveUp').onclick=()=>{if(!problem)return;const ans=problem.isPair?problem.answer.join(', '):Calculator.fmt(problem.answer);const b=$('#gameFeedback');b.className='feedback-banner show incorrect';b.textContent=`💡 Respuesta: ${ans}`;score.wrong++;score.streak=0;renderGameSteps('Solución paso a paso');updateScore();$('#gameAnswer').disabled=true;$('#gameSubmit').disabled=true};
- $('#gameAnswer').onkeydown=e=>{if(e.key==='Enter')$('#gameSubmit').click()};newProblem();
+  const $ = (selector, parent = document) =>
+    parent.querySelector(selector);
 
- // museo
- let currentMuseum=null;function drawMini(canvas,f,color){const d=window.devicePixelRatio||1,r=canvas.getBoundingClientRect();canvas.width=r.width*d;canvas.height=r.height*d;const c=canvas.getContext('2d');c.setTransform(d,0,0,d,0,0);c.clearRect(0,0,r.width,r.height);let max=1;for(let i=0;i<180;i++){const t=f.tMin+(f.tMax-f.tMin)*i/179,x=f.fnx(t),y=f.fny(t);if(Number.isFinite(x))max=Math.max(max,Math.abs(x));if(Number.isFinite(y))max=Math.max(max,Math.abs(y))}const s=Math.min(r.width,r.height)/(2*max*1.1);c.strokeStyle=color;c.shadowBlur=10;c.shadowColor=color;c.lineWidth=2;c.beginPath();let started=false;for(let i=0;i<600;i++){const t=f.tMin+(f.tMax-f.tMin)*i/599,x=f.fnx(t),y=f.fny(t);if(!Number.isFinite(x)||!Number.isFinite(y)){started=false;continue}const sx=r.width/2+x*s,sy=r.height/2-y*s;if(!started){c.moveTo(sx,sy);started=true}else c.lineTo(sx,sy)}c.stroke()}
- function renderMuseum(filter=''){const grid=$('#museumGrid'),q=filter.toLowerCase();grid.innerHTML='';const fs=Museum.figures.filter(f=>(f.name+' '+f.eq+' '+f.category).toLowerCase().includes(q));$('#museumCount').textContent=`${fs.length} curvas`;const colors=['#55d9ff','#9d73ff','#ff3bc7','#22d3a7','#ffb020'];fs.forEach((f,i)=>{const card=document.createElement('article');card.className='figure-card';card.innerHTML=`<canvas></canvas><div class="fname">${f.name}</div><div class="feq">${f.eq}</div><button class="use-eq">Abrir en graficador</button>`;grid.appendChild(card);drawMini(card.querySelector('canvas'),f,colors[i%colors.length]);card.addEventListener('click',e=>{if(e.target.classList.contains('use-eq')){$('#universalExpr').value=f.eq;parseUniversal(f.eq,'auto');document.querySelector('[data-view="graphing"]').click();return}openMuseum(f,colors[i%colors.length])})});museumRendered=true;bindHover();magnetic()}
- function openMuseum(f,color){currentMuseum=f;$('#museumModalName').textContent=f.name;$('#museumModalEq').textContent=f.eq;$('#museumModal').classList.add('show');requestAnimationFrame(()=>drawMini($('#museumModalCanvas'),f,color))}$('#museumModalClose').onclick=()=>$('#museumModal').classList.remove('show');$('#museumModal').onclick=e=>{if(e.target.id==='museumModal')$('#museumModal').classList.remove('show')};$('#museumUseGraph').onclick=()=>{if(!currentMuseum)return;$('#universalExpr').value=currentMuseum.eq;$('#museumModal').classList.remove('show');document.querySelector('[data-view="graphing"]').click();setTimeout(()=>parseUniversal(currentMuseum.eq,'auto'),100)};let mt;$('#museumSearch').oninput=e=>{clearTimeout(mt);mt=setTimeout(()=>renderMuseum(e.target.value),120)};
- // interactivo
- const ig=new Graph($('#interactiveCanvas'));let points=[];const presets={quad:x=>x*x/2,sin:x=>3*Math.sin(x),flat:x=>0,cubic:x=>x*x*x/8};function build(fn,n){return Array.from({length:n},(_,i)=>{const x=-8+16*i/(n-1);return{x,y:Math.round(fn(x)*100)/100}})}function updateInteractive(){const co=Interactive.lagrangeCoefficients(points);$('#interactiveEq').textContent='f(x) = '+Interactive.coeffsToString(co);ig.clearCurves();ig.clearPoints();ig.addCurve(x=>Interactive.lagrangeAt(points,x),'#9d73ff',3);points.forEach(p=>ig.addPoint(p.x,p.y,'#ff3bc7',7));ig.draw()}function resetInteractive(){points=build(presets[$('#interactivePreset').value]||presets.quad,+$('#interactivePoints').value);$('#pointsValue').textContent=points.length;updateInteractive()}$('#interactiveApply').onclick=resetInteractive;$('#interactiveReset').onclick=resetInteractive;$('#interactivePoints').oninput=e=>{$('#pointsValue').textContent=e.target.value};$('#interactivePoints').onchange=resetInteractive;let drag=-1;ig._onPointDrag=(e,phase)=>{const r=ig.canvas.getBoundingClientRect(),p=ig.screenToWorld(e.clientX-r.left,e.clientY-r.top);if(phase==='start'){let best=-1,d0=18;points.forEach((q,i)=>{const s=ig.worldToScreen(q.x,q.y),d=Math.hypot(s.x-(e.clientX-r.left),s.y-(e.clientY-r.top));if(d<d0){d0=d;best=i}});if(best>=0){drag=best;return true}}else if(phase==='move'&&drag>=0){points[drag].y=Math.round(p.y*100)/100;updateInteractive();return true}else if(phase==='end'){drag=-1;return true}return false};resetInteractive();
- // iniciar
- bindHover();magnetic();runCalculation();parseUniversal($('#universalExpr').value,'auto');window.addEventListener('load',()=>{calcGraph.resize();ug.resize();ig.resize()});
+  const $$ = (selector, parent = document) =>
+    [...parent.querySelectorAll(selector)];
+
+  const M = window.MathEngine;
+  const C = window.Calculator;
+  const G = window.Graph;
+  const S = window.Solver;
+  const F = window.Formulas;
+  const GM = window.Games;
+
+  const $id = id => document.getElementById(id);
+
+  const state = {
+    calcType: 'linear',
+    formulaCategory: 'all',
+    gameLevel: 1,
+    gameMode: 'mixed',
+    currentProblem: null,
+    gameLocked: false,
+    correct: 0,
+    wrong: 0,
+    streak: 0,
+    xp: 0
+  };
+
+  let calcGraph = null;
+  let universalGraph = null;
+
+  /* =========================
+     UTILIDADES GENERALES
+     ========================= */
+
+  function escapeHTML(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    })[char]);
+  }
+
+  function number(value, fallback = 0) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : fallback;
+  }
+
+  function fmt(value, decimals = 4) {
+    if (!Number.isFinite(value)) return '—';
+
+    const result = Number(value.toFixed(decimals));
+
+    return Object.is(result, -0) ? '0' : String(result);
+  }
+
+  /*
+   * El motor matemático devuelve un objeto CompiledExpr.
+   * Para evaluarlo se utiliza compiled.at(x), no compiled(x).
+   */
+  function compile(expression) {
+    if (!M || typeof M.compile !== 'function') {
+      throw new Error('El motor matemático no está disponible.');
+    }
+
+    const compiled = M.compile(String(expression));
+
+    if (!compiled || typeof compiled.at !== 'function') {
+      throw new Error('No se pudo compilar la expresión matemática.');
+    }
+
+    return compiled;
+  }
+
+  /*
+   * Adaptador para Graph.addCurve(), que espera una función
+   * normal: x => y.
+   */
+  function asGraphFunction(compiled) {
+    return x => {
+      try {
+        return compiled.at(x);
+      } catch (error) {
+        return NaN;
+      }
+    };
+  }
+
+  function toast(message) {
+    const element = $id('toast');
+    if (!element) return;
+
+    element.textContent = message;
+    element.classList.add('show');
+
+    clearTimeout(toast.timer);
+
+    toast.timer = setTimeout(() => {
+      element.classList.remove('show');
+    }, 2600);
+  }
+
+  function showError(element, message) {
+    if (!element) return;
+
+    element.textContent = message;
+    element.classList.toggle('visible', Boolean(message));
+  }
+
+  function clearError(element) {
+    showError(element, '');
+  }
+
+  function safeRun(callback, errorElement, prefix = 'Error') {
+    try {
+      clearError(errorElement);
+      return callback();
+    } catch (error) {
+      console.error(prefix + ':', error);
+
+      showError(
+        errorElement,
+        error && error.message
+          ? error.message
+          : 'Ocurrió un error inesperado.'
+      );
+
+      return null;
+    }
+  }
+
+  function setText(id, value) {
+    const element = $id(id);
+    if (element) element.textContent = String(value ?? '');
+  }
+
+  function setHTML(id, value) {
+    const element = $id(id);
+    if (element) element.innerHTML = value;
+  }
+
+  /* =========================
+     CAMBIO DE TEMA
+     ========================= */
+
+  const themeToggle = $id('themeToggle');
+
+  function updateThemeButton() {
+    if (!themeToggle) return;
+
+    const dark =
+      document.documentElement.getAttribute('data-theme') !== 'light';
+
+    themeToggle.setAttribute(
+      'aria-label',
+      dark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'
+    );
+
+    themeToggle.title =
+      dark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro';
+  }
+
+  if (themeToggle) {
+    themeToggle.addEventListener('click', () => {
+      const root = document.documentElement;
+      const current = root.getAttribute('data-theme');
+      const next = current === 'light' ? 'dark' : 'light';
+
+      root.setAttribute('data-theme', next);
+      updateThemeButton();
+
+      if (calcGraph) calcGraph.draw();
+      if (universalGraph) universalGraph.draw();
+
+      toast(next === 'light'
+        ? 'Tema claro activado'
+        : 'Tema oscuro activado');
+    });
+  }
+
+  updateThemeButton();
+
+  /* =========================
+     NAVEGACIÓN
+     ========================= */
+
+  const validViews = new Set([
+    'calc',
+    'graphing',
+    'solver',
+    'formulas',
+    'games'
+  ]);
+
+  function activateView(name) {
+    if (!validViews.has(name)) return;
+
+    $$('.view').forEach(view => {
+      view.classList.toggle('active', view.id === `view-${name}`);
+    });
+
+    $$('.tab-btn').forEach(button => {
+      button.classList.toggle(
+        'active',
+        button.dataset.view === name
+      );
+    });
+
+    requestAnimationFrame(() => {
+      if (name === 'calc' && calcGraph) calcGraph.resize();
+      if (name === 'graphing' && universalGraph) universalGraph.resize();
+    });
+
+    if (name === 'formulas') renderFormulas();
+  }
+
+  $$('.tab-btn[data-view]').forEach(button => {
+    button.addEventListener('click', () => {
+      activateView(button.dataset.view);
+    });
+  });
+
+  /* =========================
+     GRÁFICAS
+     ========================= */
+
+  function createGraph(canvasId) {
+    const canvas = $id(canvasId);
+
+    if (!canvas || typeof G !== 'function') {
+      console.warn(`No se pudo crear la gráfica: ${canvasId}`);
+      return null;
+    }
+
+    try {
+      return new G(canvas);
+    } catch (error) {
+      console.error(`Error al iniciar ${canvasId}:`, error);
+      return null;
+    }
+  }
+
+  calcGraph = createGraph('calcCanvas');
+  universalGraph = createGraph('universalCanvas');
+
+  function bindGraphControls(graph, controls) {
+    if (!graph) return;
+
+    const zoomIn = $id(controls.zoomIn);
+    const zoomOut = $id(controls.zoomOut);
+    const reset = $id(controls.reset);
+
+    if (zoomIn) {
+      zoomIn.addEventListener('click', () => {
+        graph.scale = Math.min(500, graph.scale * 1.25);
+        graph.draw();
+      });
+    }
+
+    if (zoomOut) {
+      zoomOut.addEventListener('click', () => {
+        graph.scale = Math.max(4, graph.scale / 1.25);
+        graph.draw();
+      });
+    }
+
+    if (reset) {
+      reset.addEventListener('click', () => graph.reset());
+    }
+  }
+
+  bindGraphControls(calcGraph, {
+    zoomIn: 'calcZoomIn',
+    zoomOut: 'calcZoomOut',
+    reset: 'calcReset'
+  });
+
+  bindGraphControls(universalGraph, {
+    zoomIn: 'univZoomIn',
+    zoomOut: 'univZoomOut',
+    reset: 'univReset'
+  });
+
+  if (calcGraph) {
+    calcGraph.onPointer = point => {
+      setText(
+        'graphReadout',
+        `x: ${fmt(point.x, 2)} · y: ${fmt(point.y, 2)}`
+      );
+    };
+  }
+
+  /* =========================
+     CALCULADORA
+     ========================= */
+
+  const calcError = $id('calcError');
+
+  function selectCalcType(type) {
+    const validTypes = [
+      'linear',
+      'quadratic',
+      'polynomial',
+      'rational',
+      'trig'
+    ];
+
+    if (!validTypes.includes(type)) return;
+
+    state.calcType = type;
+
+    $$('.type-chip[data-type]').forEach(button => {
+      button.classList.toggle(
+        'active',
+        button.dataset.type === type
+      );
+    });
+
+    $$('.type-panel').forEach(panel => {
+      panel.classList.toggle(
+        'hidden',
+        panel.id !== `inputs-${type}`
+      );
+    });
+  }
+
+  $$('.type-chip[data-type]').forEach(button => {
+    button.addEventListener('click', () => {
+      selectCalcType(button.dataset.type);
+    });
+  });
+
+  function renderResults(items) {
+    const container = $id('resultsList');
+    if (!container) return;
+
+    if (!Array.isArray(items) || items.length === 0) {
+      container.innerHTML = '';
+      return;
+    }
+
+    container.innerHTML = items.map(item => `
+      <div class="result-item">
+        <span>${escapeHTML(item.label ?? 'Resultado')}</span>
+        <b>${escapeHTML(item.value ?? '—')}</b>
+      </div>
+    `).join('');
+  }
+
+  function analyzeCalculation() {
+    return safeRun(() => {
+      if (!C || !calcGraph) {
+        throw new Error('La calculadora o su gráfica no están disponibles.');
+      }
+
+      const xValue = number($id('eval-x')?.value, NaN);
+
+      if (!Number.isFinite(xValue)) {
+        throw new Error('Introduce un valor numérico válido para x.');
+      }
+
+      let compiled = null;
+      let graphFunction = null;
+      let analysis;
+      let expression = '';
+
+      switch (state.calcType) {
+        case 'linear': {
+          expression = $id('lin-expr')?.value.trim() || '';
+
+          if (!expression) {
+            throw new Error('Escribe una función lineal.');
+          }
+
+          compiled = compile(expression);
+          graphFunction = asGraphFunction(compiled);
+          analysis = C.analyzeLinear(compiled);
+          break;
+        }
+
+        case 'quadratic': {
+          expression = $id('quad-expr')?.value.trim() || '';
+
+          if (!expression) {
+            throw new Error('Escribe una función cuadrática.');
+          }
+
+          compiled = compile(expression);
+          graphFunction = asGraphFunction(compiled);
+          analysis = C.analyzeQuadratic(compiled);
+          break;
+        }
+
+        case 'polynomial': {
+          expression = $id('poly-expr')?.value.trim() || '';
+
+          if (!expression) {
+            throw new Error('Escribe una función polinomial.');
+          }
+
+          compiled = compile(expression);
+          graphFunction = asGraphFunction(compiled);
+          analysis = C.analyzePolynomial(compiled);
+          break;
+        }
+
+        case 'rational': {
+          const numerator = $id('rat-num')?.value.trim() || '';
+          const denominator = $id('rat-den')?.value.trim() || '';
+
+          if (!numerator || !denominator) {
+            throw new Error('Escribe el numerador y el denominador.');
+          }
+
+          const pFn = compile(numerator);
+          const qFn = compile(denominator);
+
+          graphFunction = x => {
+            const denominatorValue = qFn.at(x);
+
+            if (
+              !Number.isFinite(denominatorValue) ||
+              Math.abs(denominatorValue) < 1e-12
+            ) {
+              return NaN;
+            }
+
+            return pFn.at(x) / denominatorValue;
+          };
+
+          analysis = C.analyzeRational(pFn, qFn);
+          expression = `(${numerator}) / (${denominator})`;
+          break;
+        }
+
+        case 'trig': {
+          const kind = $id('trig-kind')?.value || 'sin';
+
+          const A = number($id('trig-a')?.value, NaN);
+          const B = number($id('trig-b')?.value, NaN);
+          const Cvalue = number($id('trig-c')?.value, NaN);
+          const D = number($id('trig-d')?.value, NaN);
+
+          if (![A, B, Cvalue, D].every(Number.isFinite)) {
+            throw new Error(
+              'Los parámetros trigonométricos deben ser números.'
+            );
+          }
+
+          if (B === 0) {
+            throw new Error('El parámetro B no puede ser cero.');
+          }
+
+          analysis = C.analyzeTrig(kind, A, B, Cvalue, D);
+
+          if (!analysis || !analysis.fn) {
+            throw new Error(
+              'No se pudo construir la función trigonométrica.'
+            );
+          }
+
+          /*
+           * El analizador trigonométrico puede devolver una función
+           * normal o un objeto compilado. Admitimos ambos formatos.
+           */
+          if (typeof analysis.fn.at === 'function') {
+            compiled = analysis.fn;
+            graphFunction = asGraphFunction(compiled);
+          } else if (typeof analysis.fn === 'function') {
+            graphFunction = analysis.fn;
+          } else {
+            throw new Error(
+              'El analizador trigonométrico devolvió una función incompatible.'
+            );
+          }
+
+          expression = analysis.exprStr || `${kind}(x)`;
+          break;
+        }
+
+        default:
+          throw new Error('Selecciona un tipo de función válido.');
+      }
+
+      if (!analysis || typeof graphFunction !== 'function') {
+        throw new Error('No se pudo construir la función.');
+      }
+
+      const evaluated = graphFunction(xValue);
+
+      if (Number.isFinite(evaluated)) {
+        analysis.items.push({
+          label: `f(${fmt(xValue)})`,
+          value: fmt(evaluated)
+        });
+      } else {
+        analysis.items.push({
+          label: `f(${fmt(xValue)})`,
+          value: 'No definida en este punto'
+        });
+      }
+
+      calcGraph.clearCurves();
+      calcGraph.clearPoints();
+      calcGraph.asymptotes = [];
+
+      calcGraph.addCurve(graphFunction);
+
+      if (Array.isArray(analysis.roots)) {
+        analysis.roots.forEach(root => {
+          if (Number.isFinite(root)) {
+            calcGraph.addPoint(
+              root,
+              0,
+              '#ff2fba',
+              4,
+              `x=${fmt(root)}`
+            );
+          }
+        });
+      }
+
+      if (analysis.vertex) {
+        calcGraph.addPoint(
+          analysis.vertex.x,
+          analysis.vertex.y,
+          '#8a5cff',
+          5,
+          'Vértice'
+        );
+      }
+
+      if (Array.isArray(analysis.asymptotes)) {
+        calcGraph.asymptotes =
+          analysis.asymptotes.filter(Number.isFinite);
+      }
+
+      renderResults(analysis.items);
+      calcGraph.draw();
+
+      toast('Función analizada correctamente');
+
+      return analysis;
+    }, calcError, 'Calculadora');
+  }
+
+  const analyzeButton = $id('btnAnalyze');
+
+  if (analyzeButton) {
+    analyzeButton.addEventListener('click', analyzeCalculation);
+  }
+
+  [
+    'lin-expr',
+    'quad-expr',
+    'poly-expr',
+    'rat-num',
+    'rat-den',
+    'trig-a',
+    'trig-b',
+    'trig-c',
+    'trig-d',
+    'eval-x'
+  ].forEach(id => {
+    const input = $id(id);
+
+    if (input) {
+      input.addEventListener('keydown', event => {
+        if (event.key === 'Enter') analyzeCalculation();
+      });
+    }
+  });
+
+  /* =========================
+     GRAFICADOR UNIVERSAL
+     ========================= */
+
+  function normalizeEquation(expression) {
+    let text = String(expression || '').trim();
+
+    if (M && typeof M.normalize === 'function') {
+      text = M.normalize(text);
+    }
+
+    return text
+      .replace(/θ/g, 'theta')
+      .replace(/π/g, 'pi')
+      .replace(/[−–—]/g, '-')
+      .replace(/²/g, '^2')
+      .replace(/³/g, '^3')
+      .replace(/⁴/g, '^4')
+      .replace(/·/g, '*')
+      .replace(/×/g, '*')
+      .replace(/÷/g, '/');
+  }
+
+  function evaluateParameter(text, fallback) {
+    const source = String(text ?? '').trim();
+
+    if (!source) return fallback;
+
+    const compiled = compile(source);
+    const value = compiled.at(0);
+
+    if (!Number.isFinite(value)) {
+      throw new Error(`No se pudo interpretar el límite: ${source}`);
+    }
+
+    return value;
+  }
+
+function parseUniversal() {
+  return safeRun(() => {
+    if (!universalGraph) {
+      throw new Error('La gráfica universal no está disponible.');
+    }
+
+    const raw = $id('universalExpr')?.value.trim() || '';
+
+    if (!raw) {
+      throw new Error('Escribe una ecuación para graficar.');
+    }
+
+    const requestedMode = $id('graphMode')?.value || 'auto';
+    const expression = normalizeEquation(raw);
+
+    const min = evaluateParameter($id('graphMin')?.value, 0);
+    const max = evaluateParameter(
+      $id('graphMax')?.value,
+      2 * Math.PI
+    );
+
+    const quality = Math.max(
+      300,
+      Math.min(3000, number($id('graphQuality')?.value, 1200))
+    );
+
+    if (max <= min) {
+      throw new Error(
+        'El límite máximo debe ser mayor que el mínimo.'
+      );
+    }
+
+    /*
+     * Detectar el tipo de gráfica antes de compilar.
+     * El signo "=" solo se utiliza para separar ecuaciones;
+     * nunca debe llegar al parser matemático.
+     */
+    let mode = requestedMode;
+
+    if (mode === 'auto') {
+      if (
+        /^\s*x\s*=/.test(expression) &&
+        /,\s*y\s*=/.test(expression)
+      ) {
+        mode = 'parametric';
+      } else if (
+        /^\s*r\s*\^?\s*2\s*=/.test(expression) ||
+        /^\s*r\s*=/.test(expression)
+      ) {
+        mode = 'polar';
+      } else {
+        mode = 'cartesian';
+      }
+    }
+
+    // Preparar el lienzo.
+    universalGraph.clearCurves();
+    universalGraph.clearParametrics();
+    universalGraph.clearPoints();
+    universalGraph.asymptotes = [];
+
+    /*
+     * MODO CARTESIANO
+     * Acepta tanto x^2 como y=x^2.
+     */
+    if (mode === 'cartesian') {
+      let source = expression;
+
+      const equation = source.match(/^\s*y\s*=\s*(.+)\s*$/);
+
+      if (equation) {
+        source = equation[1].trim();
+      }
+
+      if (!source || source.includes('=')) {
+        throw new Error(
+          'Escribe una función como x^2, sin ecuaciones adicionales.'
+        );
+      }
+
+      const compiled = compile(source);
+
+      universalGraph.addCurve(asGraphFunction(compiled));
+
+      setText('universalInfo', `y = ${source}`);
+    }
+
+    /*
+     * MODO POLAR
+     * Acepta r=expresión y r^2=expresión.
+     */
+    else if (mode === 'polar') {
+      const squared = expression.match(
+        /^\s*r\s*\^?\s*2\s*=\s*(.+)\s*$/
+      );
+
+      const ordinary = expression.match(
+        /^\s*r\s*=\s*(.+)\s*$/
+      );
+
+      let radialSource;
+      let isSquared = false;
+
+      if (squared) {
+        radialSource = squared[1].trim();
+        isSquared = true;
+      } else if (ordinary) {
+        radialSource = ordinary[1].trim();
+      } else {
+        throw new Error(
+          'Para una gráfica polar, utiliza r=expresión o r^2=expresión.'
+        );
+      }
+
+      if (!radialSource || radialSource.includes('=')) {
+        throw new Error(
+          'La expresión polar contiene un signo "=" inesperado.'
+        );
+      }
+
+      const radialFn = compile(radialSource);
+
+      function radius(theta, sign = 1) {
+        const value = radialFn.at(theta);
+
+        if (!Number.isFinite(value)) {
+          return NaN;
+        }
+
+        if (isSquared) {
+          if (value < 0) return NaN;
+          return sign * Math.sqrt(value);
+        }
+
+        return value;
+      }
+
+      universalGraph.addParametric(
+        theta => radius(theta) * Math.cos(theta),
+        theta => radius(theta) * Math.sin(theta),
+        min,
+        max,
+        '#8a5cff',
+        2.7
+      );
+
+      if (isSquared) {
+        universalGraph.addParametric(
+          theta => radius(theta, -1) * Math.cos(theta),
+          theta => radius(theta, -1) * Math.sin(theta),
+          min,
+          max,
+          '#ff2fba',
+          2.3
+        );
+      }
+
+      setText(
+        'universalInfo',
+        `${isSquared ? 'r²' : 'r'} = ${radialSource}`
+      );
+    }
+
+    /*
+     * MODO PARAMÉTRICO
+     * Acepta x=expresión, y=expresión.
+     * Separamos ambos lados antes de compilar.
+     */
+    else if (mode === 'parametric') {
+      const match = expression.match(
+        /^\s*x\s*=\s*(.+?)\s*,\s*y\s*=\s*(.+?)\s*$/
+      );
+
+      if (!match) {
+        throw new Error(
+          'Formato paramétrico incorrecto. Escribe: x=cos(t), y=sin(t).'
+        );
+      }
+
+      const xSource = match[1].trim();
+      const ySource = match[2].trim();
+
+      if (
+        !xSource ||
+        !ySource ||
+        xSource.includes('=') ||
+        ySource.includes('=')
+      ) {
+        throw new Error(
+          'Las ecuaciones paramétricas deben contener una expresión válida para x y otra para y.'
+        );
+      }
+
+      const xFn = compile(xSource);
+      const yFn = compile(ySource);
+
+      universalGraph.addParametric(
+        t => xFn.at(t),
+        t => yFn.at(t),
+        min,
+        max,
+        '#8a5cff',
+        2.7
+      );
+
+      setText(
+        'universalInfo',
+        `x(t) = ${xSource} · y(t) = ${ySource}`
+      );
+    }
+
+    else {
+      throw new Error(
+        'Selecciona un modo cartesiano, polar o paramétrico válido.'
+      );
+    }
+
+    setText('qualityValue', quality);
+    setText('universalMode', mode.toUpperCase());
+
+    universalGraph.draw();
+
+    toast('Gráfica actualizada');
+
+    return true;
+  }, null, 'Graficador universal');
+}
+
+
+  const plotButton = $id('universalPlot');
+
+  if (plotButton) {
+    plotButton.addEventListener('click', parseUniversal);
+  }
+
+  const clearUniversalButton = $id('universalClear');
+
+  if (clearUniversalButton) {
+    clearUniversalButton.addEventListener('click', () => {
+      if (!universalGraph) return;
+
+      universalGraph.clearCurves();
+      universalGraph.clearParametrics();
+      universalGraph.clearPoints();
+      universalGraph.asymptotes = [];
+      universalGraph.draw();
+
+      setText('universalInfo', 'Gráfica limpiada.');
+      toast('Lienzo limpiado');
+    });
+  }
+
+  $$('.mini-chip[data-expr]').forEach(button => {
+    button.addEventListener('click', () => {
+      const input = $id('universalExpr');
+      if (!input) return;
+
+      input.value = button.dataset.expr || '';
+      parseUniversal();
+    });
+  });
+
+  const graphModeSelect = $id('graphMode');
+
+  if (graphModeSelect) {
+    graphModeSelect.addEventListener('change', () => {
+      setText('universalMode', graphModeSelect.value.toUpperCase());
+    });
+  }
+
+  const graphQuality = $id('graphQuality');
+
+  if (graphQuality) {
+    graphQuality.addEventListener('input', () => {
+      setText('qualityValue', graphQuality.value);
+    });
+  }
+
+  /* =========================
+     SOLUCIONADOR PASO A PASO
+     ========================= */
+
+  function normalizeSolverResult(result) {
+    if (typeof result === 'string') {
+      return {
+        title: 'Solución',
+        steps: [result]
+      };
+    }
+
+    if (Array.isArray(result)) {
+      return {
+        title: 'Solución paso a paso',
+        steps: result
+      };
+    }
+
+    if (result && typeof result === 'object') {
+      const steps =
+        result.steps ??
+        result.pasos ??
+        result.items ??
+        result.explanation ??
+        result.solutions ??
+        [];
+
+      return {
+        title: result.title ?? result.titulo ?? result.name ?? 'Solución',
+        steps: Array.isArray(steps) ? steps : [steps],
+        message: result.message ?? result.mensaje ?? ''
+      };
+    }
+
+    return {
+      title: 'Resultado',
+      steps: ['El solucionador no devolvió pasos que se puedan mostrar.']
+    };
+  }
+
+  function renderSolverSteps(result) {
+    const container = $id('solverSteps');
+    if (!container) return;
+
+    const normalized = normalizeSolverResult(result);
+
+    setText('solverTitle', normalized.title);
+
+    const steps = normalized.steps.filter(
+      step => step !== null && step !== undefined && step !== ''
+    );
+
+    if (!steps.length) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <b>No hay pasos disponibles</b>
+          <small>Prueba con otra expresión.</small>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = steps.map((step, index) => {
+      let content;
+
+      if (typeof step === 'object') {
+        const label = step.title ?? step.label ?? step.name ?? '';
+        const description =
+          step.description ??
+          step.text ??
+          step.content ??
+          step.value ??
+          JSON.stringify(step);
+
+        content = `
+          ${label ? `<b>${escapeHTML(label)}</b>` : ''}
+          <div>${escapeHTML(description)}</div>
+        `;
+      } else {
+        content = escapeHTML(step);
+      }
+
+      return `
+        <div class="step-item">
+          <span class="step-number">${index + 1}</span>
+          <div class="step-content">${content}</div>
+        </div>
+      `;
+    }).join('');
+
+    if (normalized.message) {
+      container.insertAdjacentHTML(
+        'beforeend',
+        `<div class="solver-result">${escapeHTML(normalized.message)}</div>`
+      );
+    }
+  }
+
+  function runSolver() {
+    return safeRun(() => {
+      if (!S || typeof S.solve !== 'function') {
+        throw new Error('El solucionador no está disponible.');
+      }
+
+      const input = $id('solverInput')?.value.trim() || '';
+
+      if (!input) {
+        throw new Error('Escribe una operación o ecuación.');
+      }
+
+      const result = S.solve(input);
+
+      renderSolverSteps(result);
+
+      return result;
+    }, $id('solverError'), 'Solucionador');
+  }
+
+  const solverRunButton = $id('solverRun');
+
+  if (solverRunButton) {
+    solverRunButton.addEventListener('click', runSolver);
+  }
+
+  $$('.mini-chip[data-solve]').forEach(button => {
+    button.addEventListener('click', () => {
+      const input = $id('solverInput');
+      if (!input) return;
+
+      input.value = button.dataset.solve || '';
+      runSolver();
+    });
+  });
+
+  const solverInput = $id('solverInput');
+
+  if (solverInput) {
+    solverInput.addEventListener('keydown', event => {
+      if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault();
+        runSolver();
+      }
+    });
+  }
+
+  /* =========================
+     BIBLIOTECA DE FÓRMULAS
+     ========================= */
+
+  function getFormulaList() {
+    if (!F) return [];
+
+    const list = F.formulas ?? F.list ?? F.items ?? [];
+
+    return Array.isArray(list) ? list : [];
+  }
+
+  function formulaValue(formula, keys, fallback = '') {
+    for (const key of keys) {
+      if (
+        formula &&
+        formula[key] !== undefined &&
+        formula[key] !== null
+      ) {
+        return formula[key];
+      }
+    }
+
+    return fallback;
+  }
+
+  function renderFormulas() {
+    const container = $id('formulaGrid');
+    if (!container) return;
+
+    const query = ($id('formulaSearch')?.value || '')
+      .trim()
+      .toLowerCase();
+
+    const formulas = getFormulaList().filter(formula => {
+      const category = String(
+        formulaValue(formula, ['category', 'categoria', 'cat'], 'algebra')
+      ).toLowerCase();
+
+      const title = String(
+        formulaValue(formula, ['name', 'nombre', 'title', 'titulo'], '')
+      );
+
+      const expression = String(
+        formulaValue(
+          formula,
+          ['formula', 'expression', 'expresion', 'equation'],
+          ''
+        )
+      );
+
+      const description = String(
+        formulaValue(
+          formula,
+          ['description', 'descripcion', 'desc', 'detail'],
+          ''
+        )
+      );
+
+      const matchesCategory =
+        state.formulaCategory === 'all' ||
+        category === state.formulaCategory;
+
+      const searchable =
+        `${title} ${expression} ${description} ${category}`.toLowerCase();
+
+      return matchesCategory && searchable.includes(query);
+    });
+
+    if (!formulas.length) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <b>No se encontraron fórmulas</b>
+          <small>Prueba con otra búsqueda o categoría.</small>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = formulas.map(formula => {
+      const title = formulaValue(
+        formula,
+        ['name', 'nombre', 'title', 'titulo'],
+        'Fórmula'
+      );
+
+      const expression = formulaValue(
+        formula,
+        ['formula', 'expression', 'expresion', 'equation'],
+        ''
+      );
+
+      const description = formulaValue(
+        formula,
+        ['description', 'descripcion', 'desc', 'detail'],
+        ''
+      );
+
+      const category = formulaValue(
+        formula,
+        ['category', 'categoria', 'cat'],
+        'algebra'
+      );
+
+      return `
+        <article class="formula-card">
+          <span class="formula-category">${escapeHTML(category)}</span>
+          <h3>${escapeHTML(title)}</h3>
+          <div class="formula-expression">${escapeHTML(expression)}</div>
+          <p>${escapeHTML(description)}</p>
+        </article>
+      `;
+    }).join('');
+  }
+
+  const formulaSearch = $id('formulaSearch');
+
+  if (formulaSearch) {
+    formulaSearch.addEventListener('input', renderFormulas);
+  }
+
+  $$('[data-formula-cat]').forEach(button => {
+    button.addEventListener('click', () => {
+      state.formulaCategory = button.dataset.formulaCat || 'all';
+
+      $$('[data-formula-cat]').forEach(item => {
+        item.classList.toggle('active', item === button);
+      });
+
+      renderFormulas();
+    });
+  });
+
+  /* =========================
+     JUEGOS MATEMÁTICOS
+     ========================= */
+
+  function updateScoreboard() {
+    setText('scoreCorrect', state.correct);
+    setText('scoreWrong', state.wrong);
+    setText('scoreStreak', state.streak);
+    setText('scoreXP', state.xp);
+  }
+
+  function getProblemText(problem) {
+    if (typeof problem === 'string') return problem;
+
+    if (!problem || typeof problem !== 'object') {
+      return 'No se pudo generar el problema.';
+    }
+
+    return (
+      problem.question ??
+      problem.pregunta ??
+      problem.problem ??
+      problem.text ??
+      problem.expression ??
+      problem.enunciado ??
+      'Resuelve el siguiente reto.'
+    );
+  }
+
+  function getProblemCategory(problem) {
+    if (!problem || typeof problem !== 'object') return 'RETO';
+
+    return (
+      problem.category ??
+      problem.categoria ??
+      problem.type ??
+      problem.tipo ??
+      'RETO'
+    );
+  }
+
+  function renderGameProblem(problem) {
+    state.currentProblem = problem;
+    state.gameLocked = false;
+
+    setText('gameProblem', getProblemText(problem));
+    setText(
+      'gameCategory',
+      String(getProblemCategory(problem)).toUpperCase()
+    );
+
+    setText('gameFeedback', '');
+    setText('gameSteps', '');
+
+    const answer = $id('gameAnswer');
+
+    if (answer) {
+      answer.value = '';
+      answer.disabled = false;
+    }
+
+    const submit = $id('gameSubmit');
+
+    if (submit) {
+      submit.disabled = false;
+      submit.textContent = 'Verificar';
+    }
+  }
+
+  function newGameProblem() {
+    if (!GM || typeof GM.randomProblem !== 'function') {
+      toast('El generador de retos no está disponible.');
+      return;
+    }
+
+    try {
+      const problem = GM.randomProblem(
+        state.gameLevel,
+        state.gameMode
+      );
+
+      if (!problem) {
+        throw new Error('No se pudo generar un problema.');
+      }
+
+      renderGameProblem(problem);
+    } catch (error) {
+      console.error('Error generando reto:', error);
+      setText(
+        'gameFeedback',
+        'No se pudo generar el reto. Inténtalo de nuevo.'
+      );
+    }
+  }
+
+  function compareAnswers(userAnswer, expectedAnswer) {
+    const user = String(userAnswer).trim().replace(',', '.');
+    const expected = String(expectedAnswer ?? '').trim().replace(',', '.');
+
+    if (user === expected) return true;
+
+    const userNumber = Number(user);
+    const expectedNumber = Number(expected);
+
+    if (
+      Number.isFinite(userNumber) &&
+      Number.isFinite(expectedNumber)
+    ) {
+      return Math.abs(userNumber - expectedNumber) < 1e-6;
+    }
+
+    return user.toLowerCase() === expected.toLowerCase();
+  }
+
+  function checkGameAnswer() {
+    if (!state.currentProblem || state.gameLocked) return;
+
+    const input = $id('gameAnswer');
+    if (!input) return;
+
+    const answer = input.value.trim();
+
+    if (!answer) {
+      setText('gameFeedback', 'Escribe una respuesta primero.');
+      return;
+    }
+
+    let correct = false;
+
+    try {
+      if (GM && typeof GM.checkAnswer === 'function') {
+        const result = GM.checkAnswer(answer, state.currentProblem);
+
+        if (typeof result === 'boolean') {
+          correct = result;
+        } else if (result && typeof result === 'object') {
+          correct = Boolean(
+            result.correct ??
+            result.isCorrect ??
+            result.ok
+          );
+        } else {
+          correct = Boolean(result);
+        }
+      } else {
+        const expected =
+          state.currentProblem.answer ??
+          state.currentProblem.respuesta ??
+          state.currentProblem.correctAnswer;
+
+        correct = compareAnswers(answer, expected);
+      }
+    } catch (error) {
+      console.error('Error verificando respuesta:', error);
+
+      setText(
+        'gameFeedback',
+        'No se pudo verificar la respuesta. Inténtalo otra vez.'
+      );
+
+      return;
+    }
+
+    state.gameLocked = true;
+    input.disabled = true;
+
+    const submit = $id('gameSubmit');
+
+    if (submit) submit.disabled = true;
+
+    if (correct) {
+      state.correct++;
+      state.streak++;
+      state.xp += 10 * state.gameLevel;
+
+      setText('gameFeedback', '¡Correcto! +XP');
+      toast('¡Respuesta correcta!');
+    } else {
+      state.wrong++;
+      state.streak = 0;
+
+      setText(
+        'gameFeedback',
+        'No es correcto. Puedes consultar la solución.'
+      );
+    }
+
+    updateScoreboard();
+  }
+
+  function showGameSolution() {
+    const problem = state.currentProblem;
+
+    if (!problem) {
+      toast('Genera un problema primero.');
+      return;
+    }
+
+    let solution =
+      problem.solution ??
+      problem.solucion ??
+      problem.explanation ??
+      problem.explicacion ??
+      problem.steps ??
+      problem.pasos ??
+      '';
+
+    if (Array.isArray(solution)) {
+      solution = solution.map(step => {
+        if (typeof step === 'object') {
+          return step.text ?? step.description ?? JSON.stringify(step);
+        }
+
+        return step;
+      }).join('\n');
+    }
+
+    if (!solution) {
+      solution =
+        'No hay una explicación adicional disponible para este reto.';
+    }
+
+    setText('gameSteps', String(solution));
+
+    if (!state.gameLocked) {
+      state.gameLocked = true;
+      state.streak = 0;
+      updateScoreboard();
+    }
+
+    const answer = $id('gameAnswer');
+    if (answer) answer.disabled = true;
+
+    const submit = $id('gameSubmit');
+    if (submit) submit.disabled = true;
+  }
+
+  const gameSubmit = $id('gameSubmit');
+
+  if (gameSubmit) {
+    gameSubmit.addEventListener('click', checkGameAnswer);
+  }
+
+  const gameNew = $id('gameNew');
+
+  if (gameNew) {
+    gameNew.addEventListener('click', newGameProblem);
+  }
+
+  const gameGiveUp = $id('gameGiveUp');
+
+  if (gameGiveUp) {
+    gameGiveUp.addEventListener('click', showGameSolution);
+  }
+
+  const gameAnswer = $id('gameAnswer');
+
+  if (gameAnswer) {
+    gameAnswer.addEventListener('keydown', event => {
+      if (event.key === 'Enter') checkGameAnswer();
+    });
+  }
+
+  $$('[data-level]').forEach(button => {
+    button.addEventListener('click', () => {
+      state.gameLevel = number(button.dataset.level, 1);
+
+      $$('[data-level]').forEach(item => {
+        item.classList.toggle('active', item === button);
+      });
+
+      newGameProblem();
+    });
+  });
+
+  $$('[data-game-mode]').forEach(button => {
+    button.addEventListener('click', () => {
+      state.gameMode = button.dataset.gameMode || 'mixed';
+
+      $$('[data-game-mode]').forEach(item => {
+        item.classList.toggle('active', item === button);
+      });
+
+      newGameProblem();
+    });
+  });
+
+  /* =========================
+     INICIALIZACIÓN
+     ========================= */
+
+  function initialize() {
+    selectCalcType('linear');
+
+    renderFormulas();
+    updateScoreboard();
+
+    if (calcGraph) calcGraph.resize();
+    if (universalGraph) universalGraph.resize();
+
+    // Primera gráfica de la calculadora.
+    analyzeCalculation();
+
+    // Primera expresión del graficador universal.
+    if ($id('universalExpr')?.value.trim()) {
+      parseUniversal();
+    }
+
+    // Primer reto matemático.
+    newGameProblem();
+
+    console.info('MathGraph Studio iniciado correctamente.');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener(
+      'DOMContentLoaded',
+      initialize,
+      { once: true }
+    );
+  } else {
+    initialize();
+  }
 })();
+

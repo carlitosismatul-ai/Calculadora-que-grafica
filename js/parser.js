@@ -1,31 +1,592 @@
-/* MathEngine: parser matemático ligero, sin dependencias externas. */
-(function(global){
-  const FUNCTIONS={sin:Math.sin,cos:Math.cos,tan:Math.tan,asin:Math.asin,acos:Math.acos,atan:Math.atan,sinh:Math.sinh,cosh:Math.cosh,tanh:Math.tanh,sqrt:Math.sqrt,abs:Math.abs,exp:Math.exp,log:Math.log10,ln:Math.log,floor:Math.floor,ceil:Math.ceil,round:Math.round,sign:Math.sign};
-  const CONSTANTS={pi:Math.PI,e:Math.E,tau:Math.PI*2};
-  function normalize(s){return String(s).replace(/[−–—]/g,'-').replace(/²/g,'^2').replace(/³/g,'^3').replace(/⁴/g,'^4').replace(/√/g,'sqrt').replace(/π/g,'pi').replace(/θ/g,'theta').replace(/Θ/g,'theta').replace(/\[/g,'(').replace(/\]/g,')').replace(/\s+/g,'').toLowerCase();}
-  function tokenize(expr){
-    const src=normalize(expr),tokens=[]; let i=0;
-    while(i<src.length){const c=src[i];
-      if(/[0-9.]/.test(c)){let j=i,dots=0;while(j<src.length&&/[0-9.]/.test(src[j])){if(src[j]==='.')dots++;j++;}const raw=src.slice(i,j);if(dots>1||raw==='.'){throw new Error('Número inválido: '+raw)}tokens.push({type:'num',value:parseFloat(raw)});i=j;continue;}
-      if(/[a-z]/.test(c)){let j=i;while(j<src.length&&/[a-z]/.test(src[j]))j++;const w=src.slice(i,j);if(FUNCTIONS[w])tokens.push({type:'func',value:w});else if(CONSTANTS[w]!==undefined)tokens.push({type:'num',value:CONSTANTS[w]});else if(w==='x'||w==='t'||w==='theta')tokens.push({type:'var',value:w});else throw new Error('Símbolo no reconocido: '+w);i=j;continue;}
-      if('+-*/^%(),'.includes(c)){tokens.push({type:c==='('? 'lparen':c===')'?'rparen':c===','?'comma':'op',value:c});i++;continue;}
-      throw new Error('Carácter inválido: '+c);
+/* ==========================================================
+   MathGraph Studio — MathEngine
+   Parser matemático sin dependencias externas.
+   Compatible con calculator.js, graph.js y solver.js.
+   ========================================================== */
+
+(function (global) {
+    'use strict';
+
+    // ======================================================
+    // 1. FUNCIONES MATEMÁTICAS
+    // ======================================================
+
+    const FUNCTIONS = Object.freeze({
+        sin: Math.sin,
+        cos: Math.cos,
+        tan: Math.tan,
+        asin: Math.asin,
+        acos: Math.acos,
+        atan: Math.atan,
+        sinh: Math.sinh,
+        cosh: Math.cosh,
+        tanh: Math.tanh,
+        sqrt: Math.sqrt,
+        abs: Math.abs,
+        exp: Math.exp,
+        log: Math.log10,
+        ln: Math.log,
+        floor: Math.floor,
+        ceil: Math.ceil,
+        round: Math.round,
+        sign: Math.sign
+    });
+
+    // ======================================================
+    // 2. CONSTANTES MATEMÁTICAS
+    // ======================================================
+
+    const CONSTANTS = Object.freeze({
+        pi: Math.PI,
+        e: Math.E,
+        tau: Math.PI * 2
+    });
+
+    // ======================================================
+    // 3. NORMALIZACIÓN
+    // ======================================================
+
+    function normalize(expression) {
+        return String(expression ?? '')
+            .replace(/[−–—]/g, '-')
+            .replace(/[×·]/g, '*')
+            .replace(/÷/g, '/')
+            .replace(/²/g, '^2')
+            .replace(/³/g, '^3')
+            .replace(/⁴/g, '^4')
+            .replace(/√/g, 'sqrt')
+            .replace(/π/g, 'pi')
+            .replace(/[θΘ]/g, 'theta')
+            .replace(/[\[\]]/g, character =>
+                character === '[' ? '(' : ')'
+            )
+            .replace(/\s+/g, '')
+            .toLowerCase();
     }
-    const out=[];for(let k=0;k<tokens.length;k++){const t=tokens[k],p=tokens[k-1];if(p){const left=p.type==='num'||p.type==='var'||p.type==='rparen';const right=t.type==='num'||t.type==='var'||t.type==='func'||t.type==='lparen';if(left&&right)out.push({type:'op',value:'*'});}out.push(t);}return out;
-  }
-  const PREC={'+':2,'-':2,'*':3,'/':3,'%':3,'u-':5,'^':6};const RIGHT={u:true,'^':true};
-  function toRPN(tokens){const out=[],stack=[];let prev=null;for(const t of tokens){
-    if(t.type==='num'||t.type==='var')out.push(t);
-    else if(t.type==='func')stack.push(t);
-    else if(t.type==='comma'){while(stack.length&&stack.at(-1).type!=='lparen')out.push(stack.pop());}
-    else if(t.type==='op'){let op=t.value;if(op==='-'&&(prev===null||prev==='op'||prev==='lparen'||prev==='comma'))op='u-';if(op!=='u-'){while(stack.length){const top=stack.at(-1);if(top.type==='op'&&((RIGHT[op]?PREC[top.value]>PREC[op]:PREC[top.value]>=PREC[op])))out.push(stack.pop());else break;}}stack.push({type:'op',value:op});}
-    else if(t.type==='lparen')stack.push(t);
-    else if(t.type==='rparen'){while(stack.length&&stack.at(-1).type!=='lparen')out.push(stack.pop());if(!stack.length)throw new Error('Paréntesis desbalanceados');stack.pop();if(stack.length&&stack.at(-1).type==='func')out.push(stack.pop());}
-    prev=t.type;
-  }while(stack.length){const z=stack.pop();if(z.type==='lparen')throw new Error('Paréntesis desbalanceados');out.push(z);}return out;}
-  function evalRPN(rpn,x){const st=[];for(const t of rpn){if(t.type==='num')st.push(t.value);else if(t.type==='var')st.push(x);else if(t.type==='func'){const a=st.pop();st.push(FUNCTIONS[t.value](a));}else{if(t.value==='u-'){st.push(-st.pop());continue;}const b=st.pop(),a=st.pop();if(!Number.isFinite(a)||!Number.isFinite(b))return NaN;switch(t.value){case'+':st.push(a+b);break;case'-':st.push(a-b);break;case'*':st.push(a*b);break;case'/':st.push(a/b);break;case'%':st.push(a%b);break;case'^':st.push(Math.pow(a,b));break;}}}return st.length===1?st[0]:NaN;}
-  class CompiledExpr{constructor(source){this.source=source;this.rpn=toRPN(tokenize(source));}at(x){try{const v=evalRPN(this.rpn,x);return Number.isFinite(v)?v:NaN}catch{return NaN;}}}
-  function compile(s){return new CompiledExpr(s);}
-  function findRoots(fn,min,max,steps=4000){const roots=[],dx=(max-min)/steps;let px=min,py=fn.at(px);for(let i=1;i<=steps;i++){const x=min+i*dx,y=fn.at(x);if(Number.isFinite(py)&&Number.isFinite(y)){if(Math.abs(y)<1e-8)roots.push(x);else if(py*y<0){let a=px,b=x,fa=py;for(let k=0;k<55;k++){const m=(a+b)/2,fm=fn.at(m);if(!Number.isFinite(fm))break;if(fa*fm<=0)b=m;else{a=m;fa=fm;}}roots.push((a+b)/2);}}px=x;py=y;}roots.sort((a,b)=>a-b);return roots.filter((r,i)=>i===0||Math.abs(r-roots[i-1])>1e-4).map(r=>Math.round(r*1e6)/1e6);}
-  global.MathEngine={compile,findRoots,FUNCTIONS,CONSTANTS,normalize};
+
+    // ======================================================
+    // 4. TOKENIZACIÓN
+    // ======================================================
+
+    function tokenize(expression) {
+        const source = normalize(expression);
+        const tokens = [];
+
+        if (!source) {
+            throw new Error('Escribe una expresión matemática.');
+        }
+
+        let index = 0;
+
+        while (index < source.length) {
+            const character = source[index];
+
+            // Números, decimales y notación científica.
+            if (/[0-9.]/.test(character)) {
+                const match = source.slice(index).match(
+                    /^(?:(?:\d+\.?\d*)|(?:\.\d+))(?:e[+-]?\d+)?/
+                );
+
+                if (!match) {
+                    throw new Error(
+                        'Número inválido cerca de: ' +
+                        source.slice(index)
+                    );
+                }
+
+                const raw = match[0];
+                const value = Number(raw);
+
+                if (!Number.isFinite(value)) {
+                    throw new Error('El número está fuera de rango.');
+                }
+
+                tokens.push({ type: 'num', value });
+                index += raw.length;
+                continue;
+            }
+
+            // Funciones, constantes y variables.
+            if (/[a-z]/.test(character)) {
+                let end = index;
+
+                while (
+                    end < source.length &&
+                    /[a-z]/.test(source[end])
+                ) {
+                    end++;
+                }
+
+                const word = source.slice(index, end);
+
+                if (Object.prototype.hasOwnProperty.call(FUNCTIONS, word)) {
+                    tokens.push({ type: 'func', value: word });
+                } else if (Object.prototype.hasOwnProperty.call(CONSTANTS, word)) {
+                    tokens.push({ type: 'num', value: CONSTANTS[word] });
+                } else if (['x', 't', 'theta'].includes(word)) {
+                    tokens.push({ type: 'var', value: word });
+                } else {
+                    throw new Error('Símbolo no reconocido: ' + word);
+                }
+
+                index = end;
+                continue;
+            }
+
+            // Operadores y delimitadores.
+            if ('+-*/^%(),'.includes(character)) {
+                let type = 'op';
+
+                if (character === '(') type = 'lparen';
+                if (character === ')') type = 'rparen';
+                if (character === ',') type = 'comma';
+
+                tokens.push({ type, value: character });
+                index++;
+                continue;
+            }
+
+            throw new Error('Carácter inválido: ' + character);
+        }
+
+        // Multiplicación implícita:
+        // 2x, 3(x+1), (x+1)(x-1), 2pi y 2sin(x).
+        const output = [];
+
+        for (let i = 0; i < tokens.length; i++) {
+            const current = tokens[i];
+            const previous = tokens[i - 1];
+
+            if (previous) {
+                const leftCanMultiply = [
+                    'num', 'var', 'rparen'
+                ].includes(previous.type);
+
+                const rightCanMultiply = [
+                    'num', 'var', 'func', 'lparen'
+                ].includes(current.type);
+
+                if (leftCanMultiply && rightCanMultiply) {
+                    output.push({ type: 'op', value: '*' });
+                }
+            }
+
+            output.push(current);
+        }
+
+        return output;
+    }
+
+    // ======================================================
+    // 5. PRECEDENCIA
+    // ======================================================
+
+    const PRECEDENCE = Object.freeze({
+        '+': 2,
+        '-': 2,
+        '*': 3,
+        '/': 3,
+        '%': 3,
+        'u+': 4,
+        'u-': 4,
+        '^': 5
+    });
+
+    const RIGHT_ASSOCIATIVE = new Set([
+        'u+', 'u-', '^'
+    ]);
+
+    // ======================================================
+    // 6. VALIDACIÓN SINTÁCTICA
+    // ======================================================
+
+    function validateTokens(tokens) {
+        if (!tokens.length) {
+            throw new Error('La expresión está vacía.');
+        }
+
+        let parentheses = 0;
+        let expectsValue = true;
+        let previous = null;
+
+        for (const token of tokens) {
+            if (token.type === 'num' || token.type === 'var') {
+                if (!expectsValue) {
+                    throw new Error(
+                        'Falta un operador entre los valores.'
+                    );
+                }
+
+                expectsValue = false;
+            } else if (token.type === 'func') {
+                if (!expectsValue) {
+                    throw new Error(
+                        'Falta un operador antes de la función.'
+                    );
+                }
+
+                expectsValue = true;
+            } else if (token.type === 'lparen') {
+                if (!expectsValue) {
+                    throw new Error(
+                        'Falta un operador antes del paréntesis.'
+                    );
+                }
+
+                parentheses++;
+                expectsValue = true;
+            } else if (token.type === 'rparen') {
+                if (parentheses <= 0) {
+                    throw new Error('Paréntesis desbalanceados.');
+                }
+
+                if (expectsValue) {
+                    throw new Error(
+                        'Hay un paréntesis vacío o una operación incompleta.'
+                    );
+                }
+
+                parentheses--;
+                expectsValue = false;
+            } else if (token.type === 'comma') {
+                throw new Error(
+                    'Las funciones admiten un solo argumento.'
+                );
+            } else if (token.type === 'op') {
+                const operator = token.value;
+
+                if (expectsValue) {
+                    if (operator !== '+' && operator !== '-') {
+                        throw new Error(
+                            'Falta un número o una variable antes de "' +
+                            operator + '".'
+                        );
+                    }
+                } else if (
+                    operator === '+' ||
+                    operator === '-' ||
+                    operator === '*' ||
+                    operator === '/' ||
+                    operator === '%' ||
+                    operator === '^'
+                ) {
+                    // Se espera otro valor después del operador.
+                }
+
+                expectsValue = true;
+            }
+
+            previous = token;
+        }
+
+        if (parentheses !== 0) {
+            throw new Error('Paréntesis desbalanceados.');
+        }
+
+        if (expectsValue) {
+            throw new Error(
+                'La expresión termina con una operación incompleta.'
+            );
+        }
+
+        if (previous && previous.type === 'func') {
+            throw new Error('Falta el argumento de la función.');
+        }
+    }
+
+    // ======================================================
+    // 7. CONVERSIÓN A NOTACIÓN POSTFIJA (RPN)
+    // ======================================================
+
+    function toRPN(tokens) {
+        validateTokens(tokens);
+
+        const output = [];
+        const stack = [];
+        let previous = null;
+
+        for (const token of tokens) {
+            if (token.type === 'num' || token.type === 'var') {
+                output.push(token);
+            } else if (token.type === 'func') {
+                stack.push(token);
+            } else if (token.type === 'op') {
+                let operator = token.value;
+
+                const unaryPosition =
+                    previous === null ||
+                    previous.type === 'op' ||
+                    previous.type === 'lparen';
+
+                if (unaryPosition && operator === '-') {
+                    operator = 'u-';
+                } else if (unaryPosition && operator === '+') {
+                    operator = 'u+';
+                }
+
+                // Los operadores unarios no deben sacar la potencia
+                // de la pila: -2^2 debe evaluarse como -(2^2).
+                while (stack.length) {
+                    const top = stack[stack.length - 1];
+
+                    if (top.type !== 'op') break;
+
+                    const currentPrecedence = PRECEDENCE[operator];
+                    const topPrecedence = PRECEDENCE[top.value];
+
+                    const shouldPop = RIGHT_ASSOCIATIVE.has(operator)
+                        ? topPrecedence > currentPrecedence
+                        : topPrecedence >= currentPrecedence;
+
+                    if (!shouldPop) break;
+
+                    output.push(stack.pop());
+                }
+
+                stack.push({ type: 'op', value: operator });
+            } else if (token.type === 'lparen') {
+                stack.push(token);
+            } else if (token.type === 'rparen') {
+                while (
+                    stack.length &&
+                    stack[stack.length - 1].type !== 'lparen'
+                ) {
+                    output.push(stack.pop());
+                }
+
+                if (!stack.length) {
+                    throw new Error('Paréntesis desbalanceados.');
+                }
+
+                stack.pop();
+
+                if (
+                    stack.length &&
+                    stack[stack.length - 1].type === 'func'
+                ) {
+                    output.push(stack.pop());
+                }
+            }
+
+            previous = token;
+        }
+
+        while (stack.length) {
+            const token = stack.pop();
+
+            if (token.type === 'lparen' || token.type === 'rparen') {
+                throw new Error('Paréntesis desbalanceados.');
+            }
+
+            output.push(token);
+        }
+
+        return output;
+    }
+
+    // ======================================================
+    // 8. EVALUACIÓN RPN
+    // ======================================================
+
+    function evalRPN(rpn, x) {
+        const stack = [];
+
+        for (const token of rpn) {
+            if (token.type === 'num') {
+                stack.push(token.value);
+                continue;
+            }
+
+            if (token.type === 'var') {
+                stack.push(x);
+                continue;
+            }
+
+            if (token.type === 'func') {
+                if (stack.length < 1) return NaN;
+
+                const argument = stack.pop();
+                const fn = FUNCTIONS[token.value];
+
+                if (typeof fn !== 'function') return NaN;
+
+                stack.push(fn(argument));
+                continue;
+            }
+
+            if (token.type === 'op') {
+                if (token.value === 'u-' || token.value === 'u+') {
+                    if (stack.length < 1) return NaN;
+
+                    const value = stack.pop();
+                    stack.push(token.value === 'u-' ? -value : value);
+                    continue;
+                }
+
+                if (stack.length < 2) return NaN;
+
+                const b = stack.pop();
+                const a = stack.pop();
+                let result;
+
+                switch (token.value) {
+                    case '+': result = a + b; break;
+                    case '-': result = a - b; break;
+                    case '*': result = a * b; break;
+                    case '/': result = a / b; break;
+                    case '%': result = a % b; break;
+                    case '^': result = Math.pow(a, b); break;
+                    default: return NaN;
+                }
+
+                stack.push(result);
+            }
+        }
+
+        return stack.length === 1 ? stack[0] : NaN;
+    }
+
+    // ======================================================
+    // 9. EXPRESIÓN COMPILADA
+    // ======================================================
+
+    class CompiledExpr {
+        constructor(source) {
+            this.source = String(source ?? '');
+            this.rpn = toRPN(tokenize(this.source));
+        }
+
+        at(x) {
+            try {
+                const value = evalRPN(this.rpn, Number(x));
+                return Number.isFinite(value) ? value : NaN;
+            } catch (error) {
+                return NaN;
+            }
+        }
+    }
+
+    // ======================================================
+    // 10. COMPILAR
+    // ======================================================
+
+    function compile(expression) {
+        return new CompiledExpr(expression);
+    }
+
+    // ======================================================
+    // 11. BÚSQUEDA NUMÉRICA DE RAÍCES
+    // ======================================================
+
+    function findRoots(fn, min, max, steps = 4000) {
+        if (!fn || typeof fn.at !== 'function') {
+            throw new TypeError(
+                'Se necesita una expresión compilada.'
+            );
+        }
+
+        min = Number(min);
+        max = Number(max);
+        steps = Math.floor(Number(steps));
+
+        if (
+            !Number.isFinite(min) ||
+            !Number.isFinite(max) ||
+            min >= max
+        ) {
+            throw new RangeError(
+                'El intervalo de búsqueda no es válido.'
+            );
+        }
+
+        if (!Number.isFinite(steps) || steps < 1) {
+            throw new RangeError(
+                'El número de pasos debe ser positivo.'
+            );
+        }
+
+        steps = Math.min(steps, 100000);
+
+        const roots = [];
+        const dx = (max - min) / steps;
+        const zeroTolerance = 1e-8;
+
+        function addRoot(root) {
+            if (!Number.isFinite(root)) return;
+
+            if (!roots.some(existing => Math.abs(existing - root) < 1e-5)) {
+                roots.push(root);
+            }
+        }
+
+        let previousX = min;
+        let previousY = fn.at(previousX);
+
+        for (let i = 1; i <= steps; i++) {
+            const currentX = min + i * dx;
+            const currentY = fn.at(currentX);
+
+            if (Number.isFinite(currentY)) {
+                if (Math.abs(currentY) < zeroTolerance) {
+                    addRoot(currentX);
+                }
+
+                if (
+                    Number.isFinite(previousY) &&
+                    previousY * currentY < 0
+                ) {
+                    let a = previousX;
+                    let b = currentX;
+                    let fa = previousY;
+
+                    for (let iteration = 0; iteration < 60; iteration++) {
+                        const middle = (a + b) / 2;
+                        const fm = fn.at(middle);
+
+                        if (!Number.isFinite(fm)) break;
+
+                        if (
+                            Math.abs(fm) < zeroTolerance ||
+                            Math.abs(b - a) < 1e-10
+                        ) {
+                            a = middle;
+                            b = middle;
+                            break;
+                        }
+
+                        if (fa * fm <= 0) {
+                            b = middle;
+                        } else {
+                            a = middle;
+                            fa = fm;
+                        }
+                    }
+
+                    addRoot((a + b) / 2);
+                }
+            }
+
+            previousX = currentX;
+            previousY = currentY;
+        }
+
+        roots.sort((a, b) => a - b);
+
+        return roots.map(root => Math.round(root * 1e6) / 1e6);
+    }
+
+    // ======================================================
+    // 12. API PÚBLICA
+    // ======================================================
+
+    global.MathEngine = {
+        compile,
+        findRoots,
+        FUNCTIONS,
+        CONSTANTS,
+        normalize,
+        normalizeInput: normalize
+    };
+
 })(window);
+
