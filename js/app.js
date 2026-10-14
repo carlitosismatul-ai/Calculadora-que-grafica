@@ -631,17 +631,14 @@ function parseUniversal() {
     const raw = $id('universalExpr')?.value.trim() || '';
 
     if (!raw) {
-      throw new Error('Escribe una ecuación para graficar.');
+      throw new Error('Escribe una función o ecuación para graficar.');
     }
 
     const requestedMode = $id('graphMode')?.value || 'auto';
     const expression = normalizeEquation(raw);
 
-    const min = evaluateParameter($id('graphMin')?.value, 0);
-    const max = evaluateParameter(
-      $id('graphMax')?.value,
-      2 * Math.PI
-    );
+    const min = evaluateParameter($id('graphMin')?.value, -10);
+    const max = evaluateParameter($id('graphMax')?.value, 10);
 
     const quality = Math.max(
       300,
@@ -654,11 +651,6 @@ function parseUniversal() {
       );
     }
 
-    /*
-     * Detectar el tipo de gráfica antes de compilar.
-     * El signo "=" solo se utiliza para separar ecuaciones;
-     * nunca debe llegar al parser matemático.
-     */
     let mode = requestedMode;
 
     if (mode === 'auto') {
@@ -677,7 +669,7 @@ function parseUniversal() {
       }
     }
 
-    // Preparar el lienzo.
+    // Limpiar la gráfica anterior.
     universalGraph.clearCurves();
     universalGraph.clearParametrics();
     universalGraph.clearPoints();
@@ -685,34 +677,122 @@ function parseUniversal() {
 
     /*
      * MODO CARTESIANO
-     * Acepta tanto x^2 como y=x^2.
+     *
+     * Acepta:
+     * x^2
+     * y=x^2
+     * 2x-9=0
+     * x^2-4=0
+     *
+     * Las ecuaciones se convierten en una función:
+     * lado izquierdo - lado derecho = 0.
      */
+
     if (mode === 'cartesian') {
       let source = expression;
+      let equationLabel = '';
 
-      const equation = source.match(/^\s*y\s*=\s*(.+)\s*$/);
+      // Caso 1: ecuación escrita como y = expresión.
+      const yEquation = source.match(
+        /^\s*y\s*=\s*(.+)\s*$/
+      );
 
-      if (equation) {
-        source = equation[1].trim();
+      if (yEquation) {
+        source = yEquation[1].trim();
+      } else {
+        // Caso 2: ecuación general con un solo signo igual.
+        const equalIndex = source.indexOf('=');
+
+        if (equalIndex !== -1) {
+          if (source.indexOf('=', equalIndex + 1) !== -1) {
+            throw new Error(
+              'Utiliza una sola igualdad, por ejemplo: 2x-9=0.'
+            );
+          }
+
+          const left = source.slice(0, equalIndex).trim();
+          const right = source.slice(equalIndex + 1).trim();
+
+          if (!left || !right) {
+            throw new Error(
+              'Completa ambos lados de la ecuación.'
+            );
+          }
+
+          /*
+           * Para ecuaciones en x:
+           * 2x-9=0 -> (2x-9)-(0)
+           * x^2=4  -> (x^2)-(4)
+           *
+           * La gráfica resultante representa:
+           * f(x) = lado izquierdo - lado derecho.
+           */
+          source = `((${left})-(${right}))`;
+          equationLabel = `${left} = ${right}`;
+        }
       }
 
       if (!source || source.includes('=')) {
         throw new Error(
-          'Escribe una función como x^2, sin ecuaciones adicionales.'
+          'Escribe una función como x^2 o una ecuación como 2x-9=0.'
         );
       }
 
       const compiled = compile(source);
+      const graphFunction = asGraphFunction(compiled);
 
-      universalGraph.addCurve(asGraphFunction(compiled));
+      universalGraph.addCurve(graphFunction);
 
-      setText('universalInfo', `y = ${source}`);
+      if (equationLabel) {
+        // Buscar raíces dentro del intervalo visible.
+        if (M && typeof M.findRoots === 'function') {
+          const roots = M.findRoots(
+            compiled,
+            min,
+            max,
+            quality
+          );
+
+          roots.forEach(root => {
+            universalGraph.addPoint(
+              root,
+              0,
+              '#ff2fba',
+              5,
+              `x=${fmt(root, 4)}`
+            );
+          });
+
+          if (roots.length) {
+            setText(
+              'universalInfo',
+              `${equationLabel} · Raíces: ${
+                roots.map(root => fmt(root, 4)).join(', ')
+              }`
+            );
+          } else {
+            setText(
+              'universalInfo',
+              `${equationLabel} · Se grafica la diferencia entre ambos lados. No se encontraron raíces en el intervalo seleccionado.`
+            );
+          }
+        } else {
+          setText(
+            'universalInfo',
+            `${equationLabel} · Gráfica de la diferencia entre ambos lados.`
+          );
+        }
+      } else {
+        setText('universalInfo', `y = ${source}`);
+      }
     }
 
     /*
      * MODO POLAR
+     *
      * Acepta r=expresión y r^2=expresión.
      */
+
     else if (mode === 'polar') {
       const squared = expression.match(
         /^\s*r\s*\^?\s*2\s*=\s*(.+)\s*$/
@@ -738,7 +818,7 @@ function parseUniversal() {
 
       if (!radialSource || radialSource.includes('=')) {
         throw new Error(
-          'La expresión polar contiene un signo "=" inesperado.'
+          'La expresión polar contiene una igualdad inesperada.'
         );
       }
 
@@ -787,9 +867,10 @@ function parseUniversal() {
 
     /*
      * MODO PARAMÉTRICO
+     *
      * Acepta x=expresión, y=expresión.
-     * Separamos ambos lados antes de compilar.
      */
+
     else if (mode === 'parametric') {
       const match = expression.match(
         /^\s*x\s*=\s*(.+?)\s*,\s*y\s*=\s*(.+?)\s*$/
@@ -811,7 +892,7 @@ function parseUniversal() {
         ySource.includes('=')
       ) {
         throw new Error(
-          'Las ecuaciones paramétricas deben contener una expresión válida para x y otra para y.'
+          'Escribe una expresión válida para x y otra para y.'
         );
       }
 
@@ -831,9 +912,7 @@ function parseUniversal() {
         'universalInfo',
         `x(t) = ${xSource} · y(t) = ${ySource}`
       );
-    }
-
-    else {
+    } else {
       throw new Error(
         'Selecciona un modo cartesiano, polar o paramétrico válido.'
       );
@@ -849,7 +928,6 @@ function parseUniversal() {
     return true;
   }, null, 'Graficador universal');
 }
-
 
   const plotButton = $id('universalPlot');
 
@@ -1098,12 +1176,12 @@ function parseUniversal() {
       );
 
       const description = String(
-        formulaValue(
-          formula,
-          ['description', 'descripcion', 'desc', 'detail'],
-          ''
-        )
-      );
+  formulaValue(
+    formula,
+    ['description', 'descripcion', 'desc', 'detail', 'note', 'nota'],
+    ''
+  )
+);
 
       const matchesCategory =
         state.formulaCategory === 'all' ||
@@ -1140,7 +1218,7 @@ function parseUniversal() {
 
       const description = formulaValue(
         formula,
-        ['description', 'descripcion', 'desc', 'detail'],
+        ['description', 'descripcion', 'desc', 'detail', 'note', 'nota'],
         ''
       );
 
@@ -1369,52 +1447,159 @@ function parseUniversal() {
     updateScoreboard();
   }
 
+ 
   function showGameSolution() {
     const problem = state.currentProblem;
 
     if (!problem) {
-      toast('Genera un problema primero.');
+      setText('gameFeedback', 'Genera un problema primero.');
       return;
     }
 
-    let solution =
+    const container = $id('gameSteps');
+
+    if (!container) {
+      console.error('No se encontró el elemento #gameSteps.');
+      setText(
+        'gameFeedback',
+        'No se encontró el espacio para mostrar la solución.'
+      );
+      return;
+    }
+
+    // Recuperar la explicación del reto.
+    let steps =
+      problem.steps ??
+      problem.pasos ??
       problem.solution ??
       problem.solucion ??
       problem.explanation ??
-      problem.explicacion ??
-      problem.steps ??
-      problem.pasos ??
-      '';
+      problem.explicacion;
 
-    if (Array.isArray(solution)) {
-      solution = solution.map(step => {
-        if (typeof step === 'object') {
-          return step.text ?? step.description ?? JSON.stringify(step);
+    // Convertir el texto en pasos individuales cuando corresponda.
+    if (typeof steps === 'string') {
+      steps = steps
+        .split(/\r?\n/)
+        .map(step => step.trim())
+        .filter(Boolean);
+    }
+
+    // Limpiar el contenido anterior.
+    container.replaceChildren();
+
+    // Forzar que el contenedor sea visible.
+    container.hidden = false;
+    container.removeAttribute('hidden');
+    container.style.setProperty('display', 'block', 'important');
+    container.style.setProperty('visibility', 'visible', 'important');
+    container.style.setProperty('opacity', '1', 'important');
+    container.style.setProperty('height', 'auto', 'important');
+    container.style.setProperty('max-height', 'none', 'important');
+    container.style.setProperty('overflow', 'visible', 'important');
+
+    // Encabezado.
+    const title = document.createElement('h3');
+    title.textContent = 'Solución paso a paso';
+    title.style.display = 'block';
+    title.style.marginBottom = '12px';
+    container.appendChild(title);
+
+    // Pasos de la explicación.
+    if (Array.isArray(steps) && steps.length > 0) {
+      const list = document.createElement('ol');
+
+      list.style.display = 'block';
+      list.style.paddingLeft = '28px';
+
+      steps.forEach(step => {
+        const item = document.createElement('li');
+
+        if (step && typeof step === 'object') {
+          item.textContent =
+            step.text ??
+            step.description ??
+            step.content ??
+            step.value ??
+            step.title ??
+            JSON.stringify(step);
+        } else {
+          item.textContent = String(step);
         }
 
-        return step;
-      }).join('\n');
+        item.style.display = 'list-item';
+        item.style.marginBottom = '10px';
+        item.style.lineHeight = '1.7';
+
+        list.appendChild(item);
+      });
+
+      container.appendChild(list);
+    } else {
+      const message = document.createElement('p');
+
+      message.textContent =
+        'Este reto no incluye pasos detallados. Consulta la respuesta correcta a continuación.';
+
+      container.appendChild(message);
     }
 
-    if (!solution) {
-      solution =
-        'No hay una explicación adicional disponible para este reto.';
+    // Mostrar la respuesta correcta.
+    const answer =
+      problem.answer ??
+      problem.respuesta ??
+      problem.correctAnswer ??
+      problem.correct_answer;
+
+    const answerBox = document.createElement('div');
+
+    answerBox.className = 'game-correct-answer';
+    answerBox.style.display = 'block';
+    answerBox.style.visibility = 'visible';
+    answerBox.style.opacity = '1';
+    answerBox.style.marginTop = '16px';
+    answerBox.style.padding = '14px';
+    answerBox.style.borderRadius = '10px';
+    answerBox.style.fontWeight = 'bold';
+    answerBox.style.lineHeight = '1.7';
+
+    let answerText = 'No disponible';
+
+    if (answer !== undefined && answer !== null) {
+      answerText = Array.isArray(answer)
+        ? answer.join(', ')
+        : typeof answer === 'object'
+          ? JSON.stringify(answer)
+          : String(answer);
     }
 
-    setText('gameSteps', String(solution));
+    answerBox.textContent = 'Respuesta correcta: ' + answerText;
+    container.appendChild(answerBox);
 
+    // Confirmación.
+    setText('gameFeedback', '¡Solución revelada!');
+
+    // Bloquear el reto después de revelar la respuesta.
     if (!state.gameLocked) {
       state.gameLocked = true;
       state.streak = 0;
       updateScoreboard();
     }
 
-    const answer = $id('gameAnswer');
-    if (answer) answer.disabled = true;
+    const answerInput = $id('gameAnswer');
+    if (answerInput) answerInput.disabled = true;
 
-    const submit = $id('gameSubmit');
-    if (submit) submit.disabled = true;
+    const submitButton = $id('gameSubmit');
+    if (submitButton) submitButton.disabled = true;
+
+    // Llevar la solución a la vista.
+    container.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest'
+    });
+
+    console.info('Solución del juego mostrada:', problem);
   }
+
 
   const gameSubmit = $id('gameSubmit');
 

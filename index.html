@@ -2,10 +2,551 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="0; url=/inicio.html">
-    <title>MathGraph Studio</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta name="theme-color" content="#090909">
+    <meta name="description" content="MathGraph Studio: explora las matemáticas, resuelve ecuaciones y descubre el poder de las gráficas.">
+
+    <title>MathGraph Studio | Bienvenido</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --background: #090909;
+            --surface: #121212;
+            --red: #b51220;
+            --red-light: #ff3347;
+            --gold: #d8b45a;
+            --white: #f5f5f5;
+            --muted: #858585;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+            background: var(--background);
+            color: var(--white);
+            font-family: 'Rajdhani', sans-serif;
+        }
+
+        /* Fondo ambiental */
+
+        .background-glow {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.12;
+            pointer-events: none;
+            animation: glow 7s ease-in-out infinite alternate;
+        }
+
+        .glow-red {
+            background: var(--red);
+            top: -250px;
+            left: -200px;
+        }
+
+        .glow-gold {
+            background: var(--gold);
+            bottom: -350px;
+            right: -150px;
+            animation-delay: -3s;
+        }
+
+        /* Cuadrícula matemática */
+
+        .grid {
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+            background-size: 45px 45px;
+            mask-image: linear-gradient(
+                to bottom,
+                transparent,
+                black 20%,
+                black 80%,
+                transparent
+            );
+            pointer-events: none;
+        }
+
+        /* Símbolos flotantes */
+
+        .math-symbol {
+            position: absolute;
+            color: rgba(216, 180, 90, 0.12);
+            font-family: 'Orbitron', sans-serif;
+            font-size: clamp(24px, 4vw, 55px);
+            pointer-events: none;
+            animation: float 8s ease-in-out infinite;
+        }
+
+        .symbol-1 {
+            top: 15%;
+            left: 12%;
+        }
+
+        .symbol-2 {
+            top: 24%;
+            right: 15%;
+            color: rgba(255, 51, 71, 0.15);
+            animation-delay: -2s;
+        }
+
+        .symbol-3 {
+            bottom: 17%;
+            left: 18%;
+            animation-delay: -4s;
+        }
+
+        .symbol-4 {
+            bottom: 20%;
+            right: 12%;
+            color: rgba(255, 51, 71, 0.15);
+            animation-delay: -1s;
+        }
+
+        /* Contenedor principal */
+
+        .welcome {
+            position: relative;
+            z-index: 2;
+            width: min(90%, 720px);
+            padding: 55px 35px;
+            text-align: center;
+            border: 1px solid rgba(216, 180, 90, 0.17);
+            border-radius: 24px;
+            background: rgba(15, 15, 15, 0.78);
+            box-shadow:
+                0 0 80px rgba(0, 0, 0, 0.55),
+                inset 0 0 35px rgba(255, 255, 255, 0.012);
+            backdrop-filter: blur(15px);
+            animation: appear 1s ease-out both;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 9px;
+            padding: 8px 15px;
+            margin-bottom: 28px;
+            border: 1px solid rgba(216, 180, 90, 0.25);
+            border-radius: 50px;
+            color: var(--gold);
+            background: rgba(216, 180, 90, 0.06);
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+
+        .badge-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--gold);
+            box-shadow: 0 0 12px var(--gold);
+            animation: pulse 1.8s infinite;
+        }
+
+        /* Logotipo */
+
+        .logo {
+            position: relative;
+            margin-bottom: 16px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: clamp(29px, 6vw, 57px);
+            font-weight: 800;
+            line-height: 1.2;
+            letter-spacing: -2px;
+        }
+
+        .logo-math {
+            color: var(--white);
+        }
+
+        .logo-graph {
+            color: var(--red-light);
+            text-shadow: 0 0 30px rgba(255, 51, 71, 0.23);
+        }
+
+        .logo-studio {
+            display: block;
+            margin-top: 9px;
+            color: var(--gold);
+            font-size: 13px;
+            font-weight: 500;
+            letter-spacing: 9px;
+        }
+
+        .divider {
+            width: 90px;
+            height: 3px;
+            margin: 30px auto;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                var(--red-light),
+                var(--gold),
+                transparent
+            );
+        }
+
+        .description {
+            max-width: 460px;
+            margin: 0 auto;
+            color: #b5b5b5;
+            font-size: 20px;
+            line-height: 1.6;
+        }
+
+        .description strong {
+            color: var(--white);
+            font-weight: 700;
+        }
+
+        /* Elementos matemáticos decorativos */
+
+        .formula {
+            margin: 28px 0;
+            color: rgba(216, 180, 90, 0.75);
+            font-family: 'Orbitron', sans-serif;
+            font-size: clamp(12px, 2.5vw, 17px);
+            letter-spacing: 2px;
+        }
+
+        /* Botón */
+
+        .enter-button {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 13px;
+            min-width: 235px;
+            padding: 16px 28px;
+            margin-top: 14px;
+            overflow: hidden;
+            border: 1px solid var(--red-light);
+            border-radius: 8px;
+            background: linear-gradient(115deg, #8e101b, #c21c2b);
+            color: white;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-decoration: none;
+            cursor: pointer;
+            transition:
+                transform 0.25s ease,
+                box-shadow 0.25s ease,
+                border-color 0.25s ease;
+        }
+
+        .enter-button::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -120%;
+            width: 80%;
+            height: 100%;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.18),
+                transparent
+            );
+            transform: skewX(-20deg);
+            transition: left 0.6s ease;
+        }
+
+        .enter-button:hover {
+            transform: translateY(-3px);
+            border-color: var(--gold);
+            box-shadow:
+                0 10px 30px rgba(181, 18, 32, 0.25),
+                0 0 20px rgba(216, 180, 90, 0.1);
+        }
+
+        .enter-button:hover::before {
+            left: 140%;
+        }
+
+        .enter-button:focus-visible {
+            outline: 2px solid var(--gold);
+            outline-offset: 5px;
+        }
+
+        .arrow {
+            font-size: 20px;
+            transition: transform 0.25s ease;
+        }
+
+        .enter-button:hover .arrow {
+            transform: translateX(5px);
+        }
+
+        /* Estado de carga */
+
+        .loading-area {
+            margin-top: 30px;
+        }
+
+        .loading-text {
+            color: var(--muted);
+            font-size: 13px;
+            letter-spacing: 1px;
+        }
+
+        .progress-track {
+            width: min(100%, 270px);
+            height: 3px;
+            margin: 13px auto 0;
+            overflow: hidden;
+            border-radius: 10px;
+            background: #292929;
+        }
+
+        .progress-bar {
+            width: 0;
+            height: 100%;
+            background: linear-gradient(90deg, var(--red), var(--gold));
+            box-shadow: 0 0 12px rgba(216, 180, 90, 0.5);
+            transition: width 0.2s linear;
+        }
+
+        /* Pie */
+
+        .footer {
+            margin-top: 38px;
+            color: #555;
+            font-size: 12px;
+            letter-spacing: 1.5px;
+        }
+
+        .footer span {
+            color: var(--gold);
+        }
+
+        /* Animaciones */
+
+        @keyframes appear {
+            from {
+                opacity: 0;
+                transform: translateY(22px) scale(0.98);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0) rotate(0deg);
+            }
+            50% {
+                transform: translateY(-18px) rotate(8deg);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.5;
+                transform: scale(0.8);
+            }
+        }
+
+        @keyframes glow {
+            from {
+                transform: scale(1);
+                opacity: 0.08;
+            }
+            to {
+                transform: scale(1.2);
+                opacity: 0.17;
+            }
+        }
+
+        /* Pantallas pequeñas */
+
+        @media (max-width: 500px) {
+            .welcome {
+                padding: 40px 22px;
+            }
+
+            .description {
+                font-size: 17px;
+            }
+
+            .logo {
+                letter-spacing: -1.5px;
+            }
+
+            .logo-studio {
+                letter-spacing: 6px;
+            }
+
+            .math-symbol {
+                opacity: 0.5;
+            }
+
+            .footer {
+                font-size: 10px;
+                letter-spacing: 1px;
+            }
+        }
+
+        /* Accesibilidad: reducir movimiento */
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                scroll-behavior: auto !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
 </head>
+
 <body>
-    <p>Abriendo MathGraph Studio...</p>
+
+    <div class="background-glow glow-red"></div>
+    <div class="background-glow glow-gold"></div>
+    <div class="grid"></div>
+
+    <div class="math-symbol symbol-1" aria-hidden="true">∑</div>
+    <div class="math-symbol symbol-2" aria-hidden="true">π</div>
+    <div class="math-symbol symbol-3" aria-hidden="true">√x</div>
+    <div class="math-symbol symbol-4" aria-hidden="true">∫</div>
+
+    <main class="welcome">
+
+        <div class="badge">
+            <span class="badge-dot"></span>
+            Tu espacio matemático
+        </div>
+
+        <h1 class="logo">
+            <span class="logo-math">Math</span><span class="logo-graph">Graph</span>
+            <span class="logo-studio">STUDIO</span>
+        </h1>
+
+        <div class="divider"></div>
+
+        <p class="description">
+            Las matemáticas no son solo números.
+            Son <strong>ideas que cobran vida</strong>
+            cuando las conviertes en gráficas.
+        </p>
+
+        <div class="formula" aria-hidden="true">
+            f(x) = y &nbsp; · &nbsp; ∑ &nbsp; · &nbsp; √x
+        </div>
+
+        <a class="enter-button" href="/inicio.html" id="enterButton">
+            <span>ENTRAR AL ESTUDIO</span>
+            <span class="arrow" aria-hidden="true">→</span>
+        </a>
+
+        <div class="loading-area" aria-live="polite">
+            <p class="loading-text" id="loadingText">
+                Tu próximo descubrimiento comienza aquí.
+            </p>
+
+            <div class="progress-track" id="progressTrack" hidden>
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+        </div>
+
+        <footer class="footer">
+            EXPLORA <span>·</span> CALCULA <span>·</span> GRAFICA
+        </footer>
+
+    </main>
+
+    <script>
+        const enterButton = document.getElementById("enterButton");
+        const loadingText = document.getElementById("loadingText");
+        const progressTrack = document.getElementById("progressTrack");
+        const progressBar = document.getElementById("progressBar");
+
+        let navigating = false;
+
+        enterButton.addEventListener("click", function (event) {
+            if (navigating) {
+                event.preventDefault();
+                return;
+            }
+
+            navigating = true;
+
+            // Evita iniciar la navegación si se abre el enlace
+            // en otra pestaña mediante Ctrl, Cmd o clic central.
+            if (
+                event.ctrlKey ||
+                event.metaKey ||
+                event.shiftKey ||
+                event.button !== 0
+            ) {
+                navigating = false;
+                return;
+            }
+
+            event.preventDefault();
+
+            enterButton.style.pointerEvents = "none";
+            enterButton.style.opacity = "0.7";
+
+            loadingText.textContent = "Preparando tu espacio matemático...";
+            progressTrack.hidden = false;
+
+            let progress = 0;
+
+            const interval = setInterval(() => {
+                progress += Math.random() * 18 + 8;
+                progress = Math.min(progress, 100);
+
+                progressBar.style.width = progress + "%";
+
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    window.location.href = "/inicio.html";
+                }
+            }, 90);
+        });
+
+        // Respeta el ajuste del navegador para reducir movimiento.
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+            document.documentElement.classList.add("reduced-motion");
+        }
+    </script>
+
 </body>
 </html>
+
