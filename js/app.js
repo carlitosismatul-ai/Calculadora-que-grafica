@@ -1054,7 +1054,7 @@ if (clearUniversalButton) {
         [];
 
       return {
-        title: result.title ?? result.titulo ?? result.name ?? 'Solución',
+        title: result.title ?? result.titulo ?? result.name ?? result.type ?? 'Solución',
         steps: Array.isArray(steps) ? steps : [steps],
         message: result.message ?? result.mensaje ?? ''
       };
@@ -1124,25 +1124,42 @@ if (clearUniversalButton) {
     }
   }
 
-  function runSolver() {
-    return safeRun(() => {
-      if (!S || typeof S.solve !== 'function') {
-        throw new Error('El solucionador no está disponible.');
-      }
+function runSolver() {
+return safeRun(() => {
+if (!S || typeof S.solve !== 'function') {
+throw new Error('El solucionador no está disponible.');
+}
 
-      const input = $id('solverInput')?.value.trim() || '';
 
-      if (!input) {
-        throw new Error('Escribe una operación o ecuación.');
-      }
+const input = $id('solverInput')?.value.trim() || '';
 
-      const result = S.solve(input);
+if (!input) {
+  throw new Error('Escribe una operación o ecuación.');
+}
 
-      renderSolverSteps(result);
+const mode = $id('solverMode')?.value || 'auto';
 
-      return result;
-    }, $id('solverError'), 'Solucionador');
-  }
+const rawXValue = $id('solverXValue')?.value;
+const xValue = rawXValue !== undefined &&
+  rawXValue.trim() !== ''
+  ? Number(rawXValue)
+  : NaN;
+
+if (rawXValue !== undefined && rawXValue.trim() !== '' &&
+    !Number.isFinite(xValue)) {
+  throw new Error('Introduce un valor numérico válido para x.');
+}
+
+const result = S.solve(input, xValue, mode);
+
+renderSolverSteps(result);
+
+return result;
+
+
+}, $id('solverError'), 'Solucionador');
+}
+
 
   const solverRunButton = $id('solverRun');
 
@@ -1150,15 +1167,23 @@ if (clearUniversalButton) {
     solverRunButton.addEventListener('click', runSolver);
   }
 
-  $$('.mini-chip[data-solve]').forEach(button => {
-    button.addEventListener('click', () => {
-      const input = $id('solverInput');
-      if (!input) return;
+$$('.mini-chip[data-solve]').forEach(button => {
+  button.addEventListener('click', () => {
+    const input = $id('solverInput');
+    const modeSelect = $id('solverMode');
 
-      input.value = button.dataset.solve || '';
-      runSolver();
-    });
+    if (!input) return;
+
+    input.value = button.dataset.solve || '';
+
+    if (modeSelect && button.dataset.solveMode) {
+      modeSelect.value = button.dataset.solveMode;
+    }
+
+    runSolver();
   });
+});
+
 
   const solverInput = $id('solverInput');
 

@@ -1876,3 +1876,106 @@ animation: none;
 
 }
 
+/* ========================================
+   CALCULADORA TRIGONOMÉTRICA COMPACTA
+======================================== */
+
+.trig-formula {
+    margin: 12px 0;
+    padding: 12px;
+    text-align: center;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 12px;
+    background: var(--panel, rgba(128, 128, 128, 0.10));
+    border: 1px solid var(--border, rgba(128, 128, 128, 0.20));
+    overflow-wrap: anywhere;
+}
+
+.trig-parameters {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.trig-parameters .field {
+    min-width: 0;
+    margin-bottom: 0;
+}
+
+.trig-info {
+    margin-top: 12px;
+    border: 1px solid var(--border, rgba(128, 128, 128, 0.20));
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.trig-info summary {
+    padding: 12px 14px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    list-style-position: inside;
+    user-select: none;
+    transition: background 0.2s ease;
+}
+
+.trig-info summary:hover {
+    background: rgba(128, 128, 128, 0.10);
+}
+
+.trig-info[open] summary {
+    border-bottom: 1px solid var(--border, rgba(128, 128, 128, 0.20));
+}
+
+.trig-info-content {
+    padding: 12px 14px;
+    font-size: 0.88rem;
+    line-height: 1.6;
+    animation: trigInfoAppear 0.2s ease;
+}
+
+.trig-info-content p {
+    margin: 0 0 10px;
+}
+
+.trig-info-content p:last-child {
+    margin-bottom: 0;
+}
+
+.trig-info-content ul {
+    margin: 6px 0 12px;
+    padding-left: 22px;
+}
+
+.trig-example {
+    margin: 10px 0;
+    padding: 10px;
+    text-align: center;
+    font-weight: 600;
+    border-radius: 8px;
+    background: rgba(128, 128, 128, 0.10);
+}
+
+@keyframes trigInfoAppear {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (max-width: 420px) {
+    .trig-parameters {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .trig-formula {
+        font-size: 1rem;
+    }
+}

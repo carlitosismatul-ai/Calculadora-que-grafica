@@ -60,7 +60,88 @@
             <div id="inputs-quadratic" class="type-panel hidden"><div class="field"><label>f(x)</label><input class="input" id="quad-expr" value="x^2 - 5x + 6"></div></div>
             <div id="inputs-polynomial" class="type-panel hidden"><div class="field"><label>f(x)</label><input class="input" id="poly-expr" value="x^3 - 4x^2 + x + 6"></div></div>
             <div id="inputs-rational" class="type-panel hidden"><div class="field"><label>Numerador p(x)</label><input class="input" id="rat-num" value="x - 2"></div><div class="field"><label>Denominador q(x)</label><input class="input" id="rat-den" value="x^2 - 9"></div></div>
-            <div id="inputs-trig" class="type-panel hidden"><div class="field"><label>Tipo</label><select class="input" id="trig-kind"><option value="sin">seno</option><option value="cos">coseno</option><option value="tan">tangente</option></select></div><div class="field-row3"><div><label>A</label><input class="input" id="trig-a" value="2"></div><div><label>B</label><input class="input" id="trig-b" value="1"></div><div><label>C</label><input class="input" id="trig-c" value="0"></div></div><div class="field"><label>D</label><input class="input" id="trig-d" value="0"></div></div>
+<div id="inputs-trig" class="type-panel hidden">
+
+    <!-- Tipo de función -->
+    <div class="field">
+        <label for="trig-kind">Función trigonométrica</label>
+        <select class="input" id="trig-kind">
+            <option value="sin">Seno — sin(x)</option>
+            <option value="cos">Coseno — cos(x)</option>
+            <option value="tan">Tangente — tan(x)</option>
+        </select>
+    </div>
+
+    <!-- Fórmula -->
+    <div class="trig-formula" id="trigFormula">
+        f(x) = A · sin(Bx + C) + D
+    </div>
+
+    <!-- Parámetros -->
+    <div class="trig-parameters">
+
+        <div class="field">
+            <label for="trig-a">A — Amplitud</label>
+            <input class="input" id="trig-a" type="number" step="any" value="2">
+        </div>
+
+        <div class="field">
+            <label for="trig-b">B — Frecuencia</label>
+            <input class="input" id="trig-b" type="number" step="any" value="1">
+        </div>
+
+        <div class="field">
+            <label for="trig-c">C — Fase</label>
+            <input class="input" id="trig-c" type="number" step="any" value="0">
+        </div>
+
+        <div class="field">
+            <label for="trig-d">D — Altura central</label>
+            <input class="input" id="trig-d" type="number" step="any" value="0">
+        </div>
+
+    </div>
+
+    <!-- Información desplegable -->
+    <details class="trig-info">
+        <summary>¿Qué significa cada valor?</summary>
+
+        <div class="trig-info-content">
+            <p><strong>A — Amplitud:</strong> cambia la altura de la onda.</p>
+
+            <p><strong>B — Frecuencia:</strong> modifica el período y la cantidad de ciclos.</p>
+
+            <p><strong>C — Fase:</strong> desplaza la gráfica horizontalmente.</p>
+
+            <p><strong>D — Altura central:</strong> mueve la gráfica hacia arriba o abajo.</p>
+        </div>
+    </details>
+
+    <!-- Ejemplo desplegable -->
+    <details class="trig-info">
+        <summary>Ver ejemplo de uso</summary>
+
+        <div class="trig-info-content">
+            <p>Prueba estos valores:</p>
+
+            <ul>
+                <li>A = 2</li>
+                <li>B = 1</li>
+                <li>C = 0</li>
+                <li>D = 0</li>
+            </ul>
+
+            <p>Obtendrás:</p>
+
+            <div class="trig-example">
+                f(x) = 2 · sin(x)
+            </div>
+
+            <p>Cambia D a 3 para subir la gráfica o A a 4 para aumentar su amplitud.</p>
+        </div>
+    </details>
+
+</div>
             <div class="field"><label>Evaluar en x =</label><input class="input" id="eval-x" value="2"></div>
             <button class="primary-btn magnetic" id="btnAnalyze"><span>Calcular y graficar</span><i>→</i></button>
             <div class="error-box" id="calcError"></div>
@@ -172,10 +253,148 @@
       <!-- SOLVER -->
       <section class="view" id="view-solver">
         <div class="hero glass glow-card"><div><span class="eyebrow">STEP SOLVER / 03</span><h2>Aprende a resolver</h2><p>Introduce una operación o problema. MathGraph identifica el tipo y construye una explicación paso a paso.</p></div><div class="hero-orbit"><span></span><b>1→2→3</b></div></div>
-        <div class="solver-grid">
-          <div class="panel glass"><div class="section-title"><div><span class="eyebrow">PROBLEMA</span><h3>¿Qué quieres resolver?</h3></div></div><textarea class="input big-input" id="solverInput" spellcheck="false" placeholder="Ejemplos:\n2(3+4)^2 - 5\nx² - 5x + 6 = 0\n2x + 7 = 19\n(3/4) + (5/8)"></textarea><div class="quick-chips solver-examples"><button class="mini-chip" data-solve="2(3+4)^2 - 5">Operación</button><button class="mini-chip" data-solve="2x + 7 = 19">Lineal</button><button class="mini-chip" data-solve="x² - 5x + 6 = 0">Cuadrática</button><button class="mini-chip" data-solve="(3/4) + (5/8)">Fracción</button></div><button class="primary-btn magnetic" id="solverRun">Resolver paso a paso <i>→</i></button><div class="solver-error" id="solverError"></div></div>
-          <div class="panel glass"><div class="section-title"><div><span class="eyebrow">EXPLICACIÓN</span><h3 id="solverTitle">Listo para enseñar</h3></div><span class="live-badge">STEP BY STEP</span></div><div class="steps-timeline" id="solverSteps"><div class="empty-state"><span class="empty-symbol">Σ</span><b>Tu solución aparecerá aquí</b><small>Escribe un problema y pulsa resolver.</small></div></div></div>
-        </div>
+<div class="solver-grid">
+
+  <!-- PANEL DE ENTRADA -->
+
+  <div class="panel glass">
+
+
+<div class="section-title">
+  <div>
+    <span class="eyebrow">PROBLEMA</span>
+    <h3>¿Qué quieres resolver?</h3>
+  </div>
+</div>
+
+<p class="sub">
+  Selecciona el método matemático. MathGraph explicará
+  el procedimiento cuando sea compatible con el problema.
+</p>
+
+<div class="field">
+  <label for="solverMode">Tipo de operación</label>
+
+  <select class="input" id="solverMode">
+    <option value="auto">Automático: detectar operación</option>
+    <option value="arithmetic">Aritmética y fracciones</option>
+    <option value="linear">Ecuación lineal</option>
+    <option value="quadratic">Ecuación cuadrática</option>
+    <option value="polynomial">Análisis de polinomios</option>
+    <option value="factor">Factorización cuadrática</option>
+    <option value="powers">Potencias y raíces</option>
+    <option value="function">Evaluación de funciones</option>
+    <option value="numeric">Búsqueda numérica de raíces</option>
+  </select>
+</div>
+
+<div class="field">
+  <label for="solverInput">Expresión o ecuación</label>
+
+  <textarea
+    class="input big-input"
+    id="solverInput"
+    spellcheck="false"
+    placeholder="Ejemplos:
+
+
+2(3+4)^2 - 5
+2x + 7 = 19
+x^2 - 5x + 6 = 0"
+></textarea> </div>
+
+
+<div class="field">
+  <label for="solverXValue">Valor de x (para evaluar funciones)</label>
+
+  <input
+    class="input"
+    id="solverXValue"
+    type="number"
+    step="any"
+    value="2"
+  >
+</div>
+
+<div class="quick-chips solver-examples">
+  <button
+    type="button"
+    class="mini-chip"
+    data-solve="2(3+4)^2 - 5"
+    data-solve-mode="arithmetic"
+  >Operación</button>
+
+  <button
+    type="button"
+    class="mini-chip"
+    data-solve="(3/4) + (5/8)"
+    data-solve-mode="arithmetic"
+  >Fracción</button>
+
+  <button
+    type="button"
+    class="mini-chip"
+    data-solve="2x + 7 = 19"
+    data-solve-mode="linear"
+  >Lineal</button>
+
+  <button
+    type="button"
+    class="mini-chip"
+    data-solve="x^2 - 5x + 6 = 0"
+    data-solve-mode="quadratic"
+  >Cuadrática</button>
+
+  <button
+    type="button"
+    class="mini-chip"
+    data-solve="x^2 - 5x + 6 = 0"
+    data-solve-mode="factor"
+  >Factorización</button>
+
+  <button
+    type="button"
+    class="mini-chip"
+    data-solve="x^2 + 3x"
+    data-solve-mode="function"
+  >Función</button>
+</div>
+
+<button class="primary-btn magnetic" id="solverRun">
+  Resolver paso a paso <i>→</i>
+</button>
+
+<div class="solver-error" id="solverError"></div>
+
+  </div>
+
+  <!-- PANEL DE EXPLICACIÓN -->
+
+  <div class="panel glass">
+
+
+<div class="section-title">
+  <div>
+    <span class="eyebrow">EXPLICACIÓN</span>
+    <h3 id="solverTitle">Listo para enseñar</h3>
+  </div>
+
+  <span class="live-badge">STEP BY STEP</span>
+</div>
+
+<div class="steps-timeline" id="solverSteps">
+  <div class="empty-state">
+    <span class="empty-symbol">Σ</span>
+    <b>Tu solución aparecerá aquí</b>
+    <small>Elige un método, escribe un problema y pulsa resolver.</small>
+  </div>
+</div>
+
+
+  </div>
+
+</div>
+
       </section>
 
       <!-- FORMULAS -->

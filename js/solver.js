@@ -1,475 +1,880 @@
 /* =========================================================
-   Solver — solucionador matemático paso a paso
-   Compatible con MathEngine y app.js
-   ========================================================= */
+   MathGraph Studio — Solver mejorado
+   Solución paso a paso con selección de operación.
+   Compatible con MathEngine.compile().at(x)
+========================================================= */
+
 (function (global) {
-  'use strict';
+    'use strict';
 
-  const M = global.MathEngine;
+    const M = global.MathEngine;
 
-  if (!M || typeof M.compile !== 'function' || typeof M.findRoots !== 'function') {
-    console.error('Solver: MathEngine no está disponible.');
-    return;
-  }
-
-  const normalizeInput = M.normalizeInput || M.normalize;
-  const EPS = 1e-9;
-  const ROOT_EPS = 1e-6;
-
-  // ---------------------------------------------------------
-  // Utilidades
-  // ---------------------------------------------------------
-
-  function fmt(n, d = 6) {
-    if (!Number.isFinite(n)) return '—';
-
-    if (Math.abs(n) < 0.5 * 10 ** -d) n = 0;
-
-    const r = Math.round(n * 10 ** d) / 10 ** d;
-    return Object.is(r, -0) ? '0' : String(r);
-  }
-
-  function near(a, b, eps = 1e-6) {
-    return Number.isFinite(a) &&
-      Number.isFinite(b) &&
-      Math.abs(a - b) <= eps * Math.max(1, Math.abs(a), Math.abs(b));
-  }
-
-  function isIntish(n) {
-    return Number.isFinite(n) && near(n, Math.round(n), 1e-6);
-  }
-
-  function escapeHTML(value) {
-    return String(value)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
-
-  function safeAt(fn, x) {
-    try {
-      const value = fn.at(x);
-      return Number.isFinite(value) ? value : NaN;
-    } catch {
-      return NaN;
-    }
-  }
-
-  function signTerm(c, term, first = false) {
-    if (Math.abs(c) < EPS) return '';
-
-    const abs = Math.abs(c);
-    const coef = term && near(abs, 1) ? '' : fmt(abs);
-    const piece = `${coef}${term}`;
-
-    if (first) return c < 0 ? `−${piece}` : piece;
-    return c < 0 ? ` − ${piece}` : ` + ${piece}`;
-  }
-
-  function polyString(a, b, c) {
-    let s = '';
-
-    s += signTerm(a, 'x²', true);
-    s += signTerm(b, 'x', s === '');
-    s += signTerm(c, '', s === '');
-
-    return s || '0';
-  }
-
-  function uniqueRoots(roots, tolerance = ROOT_EPS) {
-    const result = [];
-
-    for (const root of roots.filter(Number.isFinite).sort((a, b) => a - b)) {
-      if (!result.some(existing => Math.abs(existing - root) < tolerance)) {
-        result.push(root);
-      }
+    if (!M || typeof M.compile !== 'function') {
+        console.error('Solver: MathEngine no está disponible.');
+        return;
     }
 
-    return result;
-  }
-
-  function numericRoots(fn, min = -25, max = 25, steps = 12000) {
-    try {
-      return uniqueRoots(
-        M.findRoots(fn, min, max, steps).filter(Number.isFinite)
-      );
-    } catch (error) {
-      console.warn('Solver: error durante la búsqueda numérica.', error);
-      return [];
-    }
-  }
-
-  // ---------------------------------------------------------
-  // Detección aproximada de polinomios de grado 0, 1 o 2
-  // ---------------------------------------------------------
-
-  function sampleDegree(fn) {
-    const points = [-3, -2, -1, 0, 1, 2, 3];
-    const values = points.map(x => safeAt(fn, x));
-
-    if (!values.every(Number.isFinite)) {
-      return { degree: null };
-    }
-
-    const f0 = safeAt(fn, 0);
-    const f1 = safeAt(fn, 1);
-    const fm1 = safeAt(fn, -1);
-
-    const a = (f1 + fm1 - 2 * f0) / 2;
-    const b = (f1 - fm1) / 2;
-    const c = f0;
-
-    const fits = points.every((x, i) => {
-      const predicted = a * x * x + b * x + c;
-      return near(predicted, values[i], 1e-7);
-    });
-
-    if (!fits) return { degree: null };
-
-    if (Math.abs(a) > EPS) {
-      return { degree: 2, a, b, c };
-    }
-
-    if (Math.abs(b) > EPS) {
-      return { degree: 1, a: b, b: c };
-    }
-
-    return { degree: 0, value: c };
-  }
-
-  // ---------------------------------------------------------
-  // Ecuaciones lineales
-  // ax + b = 0
-  // ---------------------------------------------------------
-
-  function solveLinearSteps(a, b, leftStr, rightStr) {
-    const steps = [];
-
-    steps.push(
-      `Ecuación original: <b>${escapeHTML(leftStr)} = ${escapeHTML(rightStr)}</b>`
-    );
-
-    steps.push('Restamos el lado derecho a ambos lados para obtener una ecuación igualada a cero.');
-
-    steps.push(
-      `Forma estándar: <b>${escapeHTML(polyString(0, a, b))} = 0</b>`
-    );
-
-    if (Math.abs(a) < EPS) {
-      if (Math.abs(b) < EPS) {
-        steps.push('La igualdad se cumple para cualquier valor de x.');
-        steps.push('<b>Resultado: infinitas soluciones reales.</b>');
-      } else {
-        steps.push(`Obtenemos ${fmt(b)} = 0, lo cual es una contradicción.`);
-        steps.push('<b>Resultado: no hay soluciones.</b>');
-      }
-
-      return { steps, roots: [] };
-    }
-
-    steps.push(`Restamos ${fmt(b)} a ambos lados: ${fmt(a)}x = ${fmt(-b)}.`);
-
-    steps.push(
-      `Dividimos ambos lados entre ${fmt(a)}: x = ${fmt(-b)} / ${fmt(a)}.`
-    );
-
-    const x = -b / a;
-
-    if (!Number.isFinite(x)) {
-      steps.push('<b>No se pudo representar la solución como un número finito.</b>');
-      return { steps, roots: [] };
-    }
-
-    steps.push(`<b>Resultado: x = ${fmt(x)}</b>`);
-
-    return { steps, roots: [x] };
-  }
-
-  // ---------------------------------------------------------
-  // Ecuaciones cuadráticas
-  // ax² + bx + c = 0
-  // ---------------------------------------------------------
-
-  function solveQuadraticSteps(a, b, c) {
-    const steps = [];
-
-    steps.push(
-      `Forma estándar: <b>${escapeHTML(polyString(a, b, c))} = 0</b>`
-    );
-
-    steps.push(`Coeficientes: a = ${fmt(a)}, b = ${fmt(b)}, c = ${fmt(c)}.`);
-
-    if (Math.abs(a) < EPS) {
-      steps.push('El coeficiente de x² es cero, así que la ecuación no es cuadrática.');
-
-      const linear = solveLinearSteps(b, c, polyString(0, b, c), '0');
-
-      return { steps: [...steps, ...linear.steps], roots: linear.roots };
-    }
-
-    steps.push('Usamos la fórmula general:');
-
-    steps.push('x = (−b ± √(b² − 4ac)) / (2a).');
-
-    const disc = b * b - 4 * a * c;
-
-    steps.push(
-      `Discriminante: Δ = (${fmt(b)})² − 4(${fmt(a)})(${fmt(c)}) = ${fmt(disc)}.`
-    );
-
-    let roots = [];
-
-    if (disc > EPS) {
-      const sqrtD = Math.sqrt(disc);
-
-      steps.push('Como Δ > 0, existen dos raíces reales distintas.');
-
-      steps.push(`Calculamos √Δ = ${fmt(sqrtD)}.`);
-
-      // Fórmula numéricamente estable para una de las raíces.
-      const q = -0.5 * (b + Math.sign(b || 1) * sqrtD);
-      const r1 = q / a;
-      const r2 = Math.abs(q) > EPS ? c / q : (-b - sqrtD) / (2 * a);
-
-      roots = uniqueRoots([r1, r2]);
-
-      steps.push(`Primera raíz: x₁ = ${fmt(roots[0])}.`);
-      steps.push(`Segunda raíz: x₂ = ${fmt(roots[1])}.`);
-
-      steps.push(
-        `<b>Resultado: x₁ = ${fmt(roots[0])}, x₂ = ${fmt(roots[1])}</b>`
-      );
-
-      if (roots.length === 2 && roots.every(isIntish)) {
-        steps.push(
-          `Comprobación por factorización aproximada: ` +
-          `(x − (${fmt(roots[0])}))(x − (${fmt(roots[1])})) = 0.`
-        );
-      }
-    } else if (Math.abs(disc) <= EPS) {
-      const root = -b / (2 * a);
-
-      roots = [root];
-
-      steps.push('Como Δ = 0, existe una raíz real doble.');
-
-      steps.push(`x = −b / (2a) = ${fmt(root)}.`);
-
-      steps.push(`<b>Resultado: x = ${fmt(root)} (raíz doble).</b>`);
-    } else {
-      const real = -b / (2 * a);
-      const imaginary = Math.sqrt(-disc) / (2 * a);
-
-      steps.push('Como Δ < 0, no existen raíces reales.');
-
-      steps.push('La ecuación tiene dos soluciones complejas conjugadas.');
-
-      steps.push(
-        `<b>Resultado: x = ${fmt(real)} ± ${fmt(Math.abs(imaginary))}i.</b>`
-      );
-    }
-
-    return { steps, roots, discriminant: disc };
-  }
-
-  // ---------------------------------------------------------
-  // Ecuaciones que requieren búsqueda numérica
-  // ---------------------------------------------------------
-
-  function solveNumeric(diffFn, leftStr, rightStr) {
-    const steps = [];
-
-    steps.push(
-      `Definimos g(x) = (${escapeHTML(leftStr)}) − (${escapeHTML(rightStr)}).`
-    );
-
-    steps.push('Buscamos los valores de x para los cuales g(x) = 0.');
-
-    steps.push(
-      'Se utiliza una búsqueda numérica en el intervalo [−25, 25]. Los resultados son aproximaciones.'
-    );
-
-    const roots = numericRoots(diffFn, -25, 25, 12000);
-
-    if (roots.length) {
-      steps.push(
-        `Raíces aproximadas encontradas: ${roots.map(r => fmt(r, 5)).join(', ')}.`
-      );
-
-      steps.push(
-        '<b>Resultado aproximado: ' +
-        roots.map(r => `x ≈ ${fmt(r, 5)}`).join('; ') +
-        '.</b>'
-      );
-
-      steps.push(
-        'La búsqueda numérica puede no detectar raíces que no crucen el eje x o raíces fuera del intervalo.'
-      );
-    } else {
-      steps.push(
-        '<b>No se encontraron raíces mediante la búsqueda numérica en [−25, 25].</b>'
-      );
-
-      steps.push(
-        'Esto no demuestra que la ecuación carezca de soluciones reales; podrían existir soluciones fuera del intervalo o raíces que el método no detecte.'
-      );
-    }
-
-    return { steps, roots, interval: { min: -25, max: 25 } };
-  }
-
-  // ---------------------------------------------------------
-  // Evaluación de expresiones
-  // ---------------------------------------------------------
-
-  function evaluateExpressionSteps(exprStr, xVal) {
-    const clean = normalizeInput(exprStr);
-    const fn = M.compile(clean);
-    const steps = [];
-
-    if (!fn || typeof fn.at !== 'function') {
-      throw new Error('No se pudo interpretar la expresión.');
-    }
-
-    // El parser admite x, t y theta. En este módulo de evaluación
-    // libre, xVal se aplica a cualquiera de esas variables.
-    const hasVariable = /(?:x|t|theta)/i.test(clean);
-
-    steps.push(`Expresión ingresada: f(x) = ${escapeHTML(exprStr)}.`);
-
-    if (hasVariable) {
-      if (!Number.isFinite(xVal)) {
-        throw new Error(
-          'La expresión contiene una variable. Escribe también el valor que deseas evaluar.'
-        );
-      }
-
-      steps.push(`Sustituimos la variable por ${fmt(xVal)}.`);
-
-      const value = fn.at(xVal);
-
-      if (!Number.isFinite(value)) {
-        throw new Error(
-          'La expresión no produce un resultado real finito para ese valor. Revisa el dominio.'
-        );
-      }
-
-      steps.push(`<b>Resultado: f(${fmt(xVal)}) = ${fmt(value)}</b>`);
-
-      return { steps, value };
-    }
-
-    const value = fn.at(0);
-
-    if (!Number.isFinite(value)) {
-      throw new Error('La expresión no produce un resultado real finito.');
-    }
-
-    steps.push(
-      'Evaluamos la expresión respetando los paréntesis, las potencias, la multiplicación, la división y las operaciones restantes.'
-    );
-
-    steps.push(`<b>Resultado: ${fmt(value)}</b>`);
-
-    return { steps, value };
-  }
-
-  // ---------------------------------------------------------
-  // Punto de entrada principal
-  // ---------------------------------------------------------
-
-  function solve(input, xVal) {
-    if (typeof input !== 'string' || !input.trim()) {
-      throw new Error('Escribe una expresión o ecuación.');
-    }
-
-    const raw = normalizeInput(input);
-
-    if (!raw) {
-      throw new Error('La expresión está vacía después de normalizarla.');
-    }
-
-    if (raw.includes('=')) {
-      const equalIndex = raw.indexOf('=');
-
-      // Rechaza ecuaciones con más de un signo igual.
-      if (raw.indexOf('=', equalIndex + 1) !== -1) {
-        throw new Error('Escribe una sola igualdad, por ejemplo: 2x + 4 = 10.');
-      }
-
-      const leftRaw = raw.slice(0, equalIndex).trim();
-      const rightRaw = raw.slice(equalIndex + 1).trim();
-
-      if (!leftRaw || !rightRaw) {
-        throw new Error('La ecuación está incompleta. Escribe ambos lados de la igualdad.');
-      }
-
-      const left = M.compile(leftRaw);
-      const right = M.compile(rightRaw);
-
-      const diff = {
-        at(x) {
-          return left.at(x) - right.at(x);
+    const normalizeInput = M.normalizeInput || M.normalize;
+    const EPS = 1e-9;
+    const ROOT_EPS = 1e-6;
+
+    // ---------------------------------------------------------
+    // UTILIDADES
+    // ---------------------------------------------------------
+
+    function fmt(n, decimals = 6) {
+        if (!Number.isFinite(n)) return '—';
+
+        if (Math.abs(n) < 0.5 * 10 ** -decimals) {
+            n = 0;
         }
-      };
 
-      const info = sampleDegree(diff);
+        const result = Number(n.toFixed(decimals));
 
-      if (info.degree === 2) {
-        return {
-          type: 'Ecuación cuadrática',
-          ...solveQuadraticSteps(info.a, info.b, info.c)
+        return Object.is(result, -0) ? '0' : String(result);
+    }
+
+    function near(a, b, tolerance = 1e-7) {
+        return Number.isFinite(a) &&
+            Number.isFinite(b) &&
+            Math.abs(a - b) <= tolerance *
+            Math.max(1, Math.abs(a), Math.abs(b));
+    }
+
+    function escapeHTML(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function compile(expression) {
+        const result = M.compile(expression);
+
+        if (!result || typeof result.at !== 'function') {
+            throw new Error(
+                'No se pudo interpretar la expresión matemática.'
+            );
+        }
+
+        return result;
+    }
+
+    function safeAt(fn, x) {
+        try {
+            const result = fn.at(x);
+            return Number.isFinite(result) ? result : NaN;
+        } catch {
+            return NaN;
+        }
+    }
+
+    function uniqueRoots(roots) {
+        const result = [];
+
+        roots
+            .filter(Number.isFinite)
+            .sort((a, b) => a - b)
+            .forEach(root => {
+                if (!result.some(existing =>
+                    Math.abs(existing - root) < ROOT_EPS
+                )) {
+                    result.push(root);
+                }
+            });
+
+        return result;
+    }
+
+    function signTerm(coefficient, variable, first = false) {
+        if (Math.abs(coefficient) < EPS) return '';
+
+        const absolute = Math.abs(coefficient);
+
+        const number = variable && near(absolute, 1)
+            ? ''
+            : fmt(absolute);
+
+        const term = `${number}${variable}`;
+
+        if (first) {
+            return coefficient < 0 ? `−${term}` : term;
+        }
+
+        return coefficient < 0
+            ? ` − ${term}`
+            : ` + ${term}`;
+    }
+
+    function polynomialString(a, b, c) {
+        let result = '';
+
+        result += signTerm(a, 'x²', true);
+        result += signTerm(b, 'x', result === '');
+        result += signTerm(c, '', result === '');
+
+        return result || '0';
+    }
+
+    function validateInput(input) {
+        if (typeof input !== 'string' || !input.trim()) {
+            throw new Error('Escribe una expresión o ecuación.');
+        }
+
+        if (typeof normalizeInput !== 'function') {
+            throw new Error(
+                'MathEngine no proporciona una función de normalización.'
+            );
+        }
+
+        const normalized = normalizeInput(input);
+
+        if (typeof normalized !== 'string' || !normalized.trim()) {
+            throw new Error('La expresión está vacía o no es válida.');
+        }
+
+        return normalized;
+    }
+
+    function hasEquality(input) {
+        return input.includes('=');
+    }
+
+    function splitEquation(input) {
+        const index = input.indexOf('=');
+
+        if (index === -1) {
+            throw new Error(
+                'Escribe una ecuación utilizando el signo =.'
+            );
+        }
+
+        if (input.indexOf('=', index + 1) !== -1) {
+            throw new Error('Escribe una sola igualdad.');
+        }
+
+        const left = input.slice(0, index).trim();
+        const right = input.slice(index + 1).trim();
+
+        if (!left || !right) {
+            throw new Error(
+                'Completa ambos lados de la ecuación.'
+            );
+        }
+
+        return { left, right };
+    }
+
+    // ---------------------------------------------------------
+    // DETECCIÓN APROXIMADA DE POLINOMIOS
+    //
+    // Identifica polinomios de grado 0, 1 o 2 mediante muestras.
+    // No constituye una prueba simbólica general.
+    // ---------------------------------------------------------
+
+    function sampleDegree(fn) {
+        const points = [-3, -2, -1, 0, 1, 2, 3];
+        const values = points.map(x => safeAt(fn, x));
+
+        if (!values.every(Number.isFinite)) {
+            return { degree: null };
+        }
+
+        const f0 = safeAt(fn, 0);
+        const f1 = safeAt(fn, 1);
+        const fm1 = safeAt(fn, -1);
+
+        const a = (f1 + fm1 - 2 * f0) / 2;
+        const b = (f1 - fm1) / 2;
+        const c = f0;
+
+        const matches = points.every((x, index) => {
+            const predicted = a * x * x + b * x + c;
+
+            return near(predicted, values[index], 1e-7);
+        });
+
+        if (!matches) {
+            return { degree: null };
+        }
+
+        if (Math.abs(a) > EPS) {
+            return { degree: 2, a, b, c };
+        }
+
+        if (Math.abs(b) > EPS) {
+            return { degree: 1, a: b, b: c };
+        }
+
+        return { degree: 0, value: c };
+    }
+
+    function getEquationInfo(input) {
+        const { left, right } = splitEquation(input);
+
+        const leftFn = compile(left);
+        const rightFn = compile(right);
+
+        const difference = {
+            at(x) {
+                const leftValue = safeAt(leftFn, x);
+                const rightValue = safeAt(rightFn, x);
+
+                if (
+                    !Number.isFinite(leftValue) ||
+                    !Number.isFinite(rightValue)
+                ) {
+                    return NaN;
+                }
+
+                return leftValue - rightValue;
+            }
         };
-      }
 
-      if (info.degree === 1) {
         return {
-          type: 'Ecuación lineal',
-          ...solveLinearSteps(info.a, info.b, leftRaw, rightRaw)
+            left,
+            right,
+            difference,
+            degreeInfo: sampleDegree(difference)
         };
-      }
+    }
 
-      if (info.degree === 0) {
+    // ---------------------------------------------------------
+    // ECUACIONES LINEALES
+    // ax + b = 0
+    // ---------------------------------------------------------
+
+    function solveLinear(a, b, left, right) {
         const steps = [];
 
-        if (near(info.value, 0)) {
-          steps.push('La diferencia entre ambos lados es cero.');
-          steps.push('<b>Resultado: la igualdad se cumple para todos los valores reales de x.</b>');
+        steps.push(`Ecuación original: ${left} = ${right}.`);
 
-          return {
-            type: 'Ecuación constante',
-            steps,
-            roots: [],
-            infinitelyManySolutions: true
-          };
+        steps.push(
+            'Restamos el lado derecho al izquierdo para escribir la ecuación igualada a cero.'
+        );
+
+        steps.push(
+            `Forma estándar: ${polynomialString(0, a, b)} = 0.`
+        );
+
+        if (Math.abs(a) < EPS) {
+            if (Math.abs(b) < EPS) {
+                steps.push(
+                    'Ambos lados son equivalentes para cualquier valor de x.'
+                );
+
+                steps.push(
+                    'Resultado: infinitas soluciones reales.'
+                );
+
+                return {
+                    type: 'Ecuación constante',
+                    steps,
+                    roots: [],
+                    infinitelyManySolutions: true
+                };
+            }
+
+            steps.push(
+                `La ecuación se reduce a ${fmt(b)} = 0, lo cual es imposible.`
+            );
+
+            steps.push(
+                'Resultado: la ecuación no tiene soluciones.'
+            );
+
+            return {
+                type: 'Ecuación constante',
+                steps,
+                roots: [],
+                noSolutions: true
+            };
         }
 
-        steps.push(`La diferencia entre ambos lados es ${fmt(info.value)}, una constante distinta de cero.`);
-        steps.push('<b>Resultado: la ecuación no tiene soluciones.</b>');
+        steps.push(
+            `Restamos ${fmt(b)} a ambos lados: ${fmt(a)}x = ${fmt(-b)}.`
+        );
+
+        steps.push(
+            `Dividimos ambos lados entre ${fmt(a)}.`
+        );
+
+        const root = -b / a;
+
+        if (!Number.isFinite(root)) {
+            throw new Error(
+                'No se pudo representar la solución como un número finito.'
+            );
+        }
+
+        steps.push(`Resultado: x = ${fmt(root)}.`);
 
         return {
-          type: 'Ecuación constante',
-          steps,
-          roots: [],
-          noSolutions: true
+            type: 'Ecuación lineal',
+            steps,
+            roots: [root]
         };
-      }
-
-      return {
-        type: 'Ecuación (numérica)',
-        ...solveNumeric(diff, leftRaw, rightRaw)
-      };
     }
 
-    return {
-      type: 'Evaluación / simplificación',
-      ...evaluateExpressionSteps(input, xVal)
-    };
-  }
+    // ---------------------------------------------------------
+    // ECUACIONES CUADRÁTICAS
+    // ax² + bx + c = 0
+    // ---------------------------------------------------------
 
-  global.Solver = { solve };
+    function solveQuadratic(a, b, c) {
+        if (Math.abs(a) < EPS) {
+            return solveLinear(
+                b,
+                c,
+                polynomialString(0, b, c),
+                '0'
+            );
+        }
+
+        const steps = [];
+
+        steps.push(
+            `Forma estándar: ${polynomialString(a, b, c)} = 0.`
+        );
+
+        steps.push(
+            `Identificamos los coeficientes: a = ${fmt(a)}, b = ${fmt(b)}, c = ${fmt(c)}.`
+        );
+
+        steps.push(
+            'Utilizamos la fórmula general: x = (−b ± √(b² − 4ac)) / (2a).'
+        );
+
+        const discriminant = b * b - 4 * a * c;
+
+        steps.push(
+            `Calculamos el discriminante: Δ = b² − 4ac = ${fmt(discriminant)}.`
+        );
+
+        let roots = [];
+
+        if (discriminant > EPS) {
+            const sqrtD = Math.sqrt(discriminant);
+
+            steps.push(
+                'Como el discriminante es positivo, existen dos raíces reales distintas.'
+            );
+
+            steps.push(
+                `La raíz cuadrada del discriminante es ${fmt(sqrtD)}.`
+            );
+
+            // Fórmula numéricamente más estable para calcular las raíces.
+            const q = -0.5 * (
+                b + Math.sign(b || 1) * sqrtD
+            );
+
+            const r1 = q / a;
+
+            const r2 = Math.abs(q) > EPS
+                ? c / q
+                : (-b - sqrtD) / (2 * a);
+
+            roots = uniqueRoots([r1, r2]);
+
+            steps.push(`Primera raíz: x₁ = ${fmt(roots[0])}.`);
+            steps.push(`Segunda raíz: x₂ = ${fmt(roots[1])}.`);
+
+            steps.push(
+                `Resultado: x₁ = ${fmt(roots[0])} y x₂ = ${fmt(roots[1])}.`
+            );
+        } else if (Math.abs(discriminant) <= EPS) {
+            const root = -b / (2 * a);
+
+            roots = [root];
+
+            steps.push(
+                'Como el discriminante es cero, existe una raíz real doble.'
+            );
+
+            steps.push(
+                `Aplicamos x = −b / (2a) y obtenemos x = ${fmt(root)}.`
+            );
+
+            steps.push(
+                `Resultado: x = ${fmt(root)} (raíz doble).`
+            );
+        } else {
+            const real = -b / (2 * a);
+            const imaginary = Math.sqrt(-discriminant) / (2 * Math.abs(a));
+
+            steps.push(
+                'Como el discriminante es negativo, no existen raíces reales.'
+            );
+
+            steps.push(
+                'En los números complejos, las soluciones tienen una parte real y una parte imaginaria.'
+            );
+
+            steps.push(
+                `Resultado complejo: x = ${fmt(real)} ± ${fmt(imaginary)}i.`
+            );
+        }
+
+        return {
+            type: 'Ecuación cuadrática',
+            steps,
+            roots,
+            discriminant
+        };
+    }
+
+    // ---------------------------------------------------------
+    // MODO AUTOMÁTICO PARA ECUACIONES
+    // ---------------------------------------------------------
+
+    function solveEquationAuto(input) {
+        const info = getEquationInfo(input);
+        const degree = info.degreeInfo;
+
+        if (degree.degree === 2) {
+            return solveQuadratic(
+                degree.a,
+                degree.b,
+                degree.c
+            );
+        }
+
+        if (degree.degree === 1) {
+            return solveLinear(
+                degree.a,
+                degree.b,
+                info.left,
+                info.right
+            );
+        }
+
+        if (degree.degree === 0) {
+            if (near(degree.value, 0)) {
+                return {
+                    type: 'Ecuación constante',
+                    steps: [
+                        'Al restar ambos lados, obtenemos cero.',
+                        'La igualdad se cumple para todos los valores reales de x.'
+                    ],
+                    roots: [],
+                    infinitelyManySolutions: true
+                };
+            }
+
+            return {
+                type: 'Ecuación constante',
+                steps: [
+                    `La diferencia entre ambos lados es ${fmt(degree.value)}.`,
+                    'Como esta constante no es cero, la ecuación no tiene soluciones.'
+                ],
+                roots: [],
+                noSolutions: true
+            };
+        }
+
+        throw new Error(
+            'No se pudo clasificar esta ecuación como lineal o cuadrática. Este solucionador todavía no garantiza la resolución simbólica de ecuaciones de mayor grado o no polinómicas.'
+        );
+    }
+
+    // ---------------------------------------------------------
+    // EVALUACIÓN DE EXPRESIONES
+    // ---------------------------------------------------------
+
+    function evaluateExpression(input, xValue, mode) {
+        const expression = normalizeInput(input);
+        const fn = compile(expression);
+        const steps = [];
+
+        const isFunctionMode = mode === 'function';
+
+        // Detectamos variables como tokens, no dentro de nombres de funciones.
+        const containsVariable =
+            /(?:^|[^a-zA-Z])(?:x|t|theta)(?=$|[^a-zA-Z])/i.test(expression);
+
+        steps.push(`Expresión ingresada: ${input}.`);
+
+        if (isFunctionMode && !containsVariable) {
+            steps.push(
+                'La expresión no contiene una variable reconocida. Se evaluará como una constante.'
+            );
+        }
+
+        if (containsVariable) {
+            if (!Number.isFinite(xValue)) {
+                throw new Error(
+                    'Esta expresión contiene una variable. Introduce un valor numérico para evaluarla.'
+                );
+            }
+
+            steps.push(
+                `Sustituimos la variable por ${fmt(xValue)}.`
+            );
+
+            const result = safeAt(fn, xValue);
+
+            if (!Number.isFinite(result)) {
+                throw new Error(
+                    'La expresión no produce un resultado real finito para ese valor. Comprueba el dominio.'
+                );
+            }
+
+            steps.push(
+                `Resultado: f(${fmt(xValue)}) = ${fmt(result)}.`
+            );
+
+            return {
+                type: isFunctionMode
+                    ? 'Evaluación de función'
+                    : 'Evaluación aritmética',
+                steps,
+                value: result
+            };
+        }
+
+        const result = safeAt(fn, 0);
+
+        if (!Number.isFinite(result)) {
+            throw new Error(
+                'La expresión no produce un resultado real finito.'
+            );
+        }
+
+        steps.push(
+            'Evaluamos las operaciones respetando los paréntesis, los exponentes, las multiplicaciones, las divisiones y las demás operaciones.'
+        );
+
+        steps.push(`Resultado final: ${fmt(result)}.`);
+
+        return {
+            type: 'Evaluación aritmética',
+            steps,
+            value: result
+        };
+    }
+
+    // ---------------------------------------------------------
+    // ANÁLISIS DE POLINOMIOS
+    // ---------------------------------------------------------
+
+    function analyzePolynomial(input) {
+        if (hasEquality(input)) {
+            const info = getEquationInfo(input);
+            const degree = info.degreeInfo;
+
+            if (degree.degree === 1 || degree.degree === 2) {
+                const a = degree.degree === 2 ? degree.a : 0;
+                const b = degree.degree === 2 ? degree.b : degree.a;
+                const c = degree.degree === 2 ? degree.c : degree.b;
+
+                return {
+                    type: 'Análisis de polinomio',
+                    steps: [
+                        `Ecuación ingresada: ${info.left} = ${info.right}.`,
+                        'Restamos el lado derecho al izquierdo para obtener una expresión igualada a cero.',
+                        `Polinomio resultante: ${polynomialString(a, b, c)}.`,
+                        `Coeficiente de x²: ${fmt(a)}.`,
+                        `Coeficiente de x: ${fmt(b)}.`,
+                        `Término independiente: ${fmt(c)}.`,
+                        `Grado identificado: ${degree.degree}.`
+                    ]
+                };
+            }
+
+            throw new Error(
+                'Por ahora, el análisis de polinomios admite ecuaciones de grado uno o dos.'
+            );
+        }
+
+        const fn = compile(input);
+        const degree = sampleDegree(fn);
+
+        if (degree.degree === null) {
+            throw new Error(
+                'No se pudo confirmar que esta expresión sea un polinomio de grado uno o dos.'
+            );
+        }
+
+        const a = degree.degree === 2 ? degree.a : 0;
+
+        const b = degree.degree === 2
+            ? degree.b
+            : degree.degree === 1
+                ? degree.a
+                : 0;
+
+        const c = degree.degree === 2
+            ? degree.c
+            : degree.degree === 1
+                ? degree.b
+                : degree.value;
+
+        return {
+            type: 'Análisis de polinomio',
+            steps: [
+                `Expresión analizada: ${input}.`,
+                `Forma polinómica identificada: ${polynomialString(a, b, c)}.`,
+                `Coeficiente de x²: ${fmt(a)}.`,
+                `Coeficiente de x: ${fmt(b)}.`,
+                `Término independiente: ${fmt(c)}.`,
+                `Grado identificado: ${degree.degree}.`,
+                'Este análisis identifica el grado y los coeficientes; no realiza todavía una simplificación simbólica general.'
+            ]
+        };
+    }
+
+    // ---------------------------------------------------------
+    // FACTORIZACIÓN CUADRÁTICA
+    // ---------------------------------------------------------
+
+    function factorQuadratic(input) {
+        const info = getEquationInfo(input);
+        const degree = info.degreeInfo;
+
+        if (degree.degree !== 2) {
+            throw new Error(
+                'La factorización implementada actualmente necesita una ecuación cuadrática reconocible, por ejemplo x^2 - 5x + 6 = 0.'
+            );
+        }
+
+        const { a, b, c } = degree;
+        const result = solveQuadratic(a, b, c);
+        const roots = result.roots || [];
+
+        const steps = [
+            `Ecuación original: ${info.left} = ${info.right}.`,
+            `Forma estándar: ${polynomialString(a, b, c)} = 0.`,
+            'Calculamos las raíces de la ecuación cuadrática para construir sus factores.'
+        ];
+
+        if (result.discriminant < -EPS) {
+            steps.push(
+                'El discriminante es negativo: no se puede factorizar en dos factores lineales reales.'
+            );
+
+            return {
+                type: 'Factorización cuadrática',
+                steps: steps.concat(result.steps.slice(3)),
+                roots: []
+            };
+        }
+
+        if (roots.length === 1) {
+            const root = roots[0];
+
+            steps.push(
+                `La raíz doble es x = ${fmt(root)}.`
+            );
+
+            steps.push(
+                `Sobre los números reales, la factorización es ${fmt(a)}(x − (${fmt(root)}))² = 0.`
+            );
+        } else if (roots.length === 2) {
+            steps.push(
+                `Las raíces son x₁ = ${fmt(roots[0])} y x₂ = ${fmt(roots[1])}.`
+            );
+
+            steps.push(
+                'Usamos la forma a(x − x₁)(x − x₂).'
+            );
+
+            steps.push(
+                `Factorización: ${fmt(a)}(x − (${fmt(roots[0])}))(x − (${fmt(roots[1])})) = 0.`
+            );
+        }
+
+        return {
+            type: 'Factorización cuadrática',
+            steps,
+            roots
+        };
+    }
+
+    // ---------------------------------------------------------
+    // RESOLUCIÓN NUMÉRICA DE RESPALDO
+    // ---------------------------------------------------------
+
+    function solveNumeric(input) {
+        if (typeof M.findRoots !== 'function') {
+            throw new Error(
+                'La búsqueda numérica de raíces no está disponible.'
+            );
+        }
+
+        const info = getEquationInfo(input);
+
+        const steps = [
+            `Ecuación original: ${info.left} = ${info.right}.`,
+            `Definimos g(x) = (${info.left}) − (${info.right}).`,
+            'Buscamos aproximaciones de los valores para los cuales g(x) = 0.',
+            'La búsqueda se realiza en el intervalo [−25, 25].'
+        ];
+
+        let roots = [];
+
+        try {
+            roots = uniqueRoots(
+                M.findRoots(info.difference, -25, 25, 12000)
+            );
+        } catch {
+            roots = [];
+        }
+
+        if (roots.length) {
+            steps.push(
+                `Raíces aproximadas encontradas: ${roots.map(root => fmt(root, 5)).join(', ')}.`
+            );
+
+            steps.push(
+                `Resultado aproximado: ${roots.map(root => `x ≈ ${fmt(root, 5)}`).join('; ')}.`
+            );
+
+            steps.push(
+                'La búsqueda numérica puede omitir raíces fuera del intervalo o raíces que no crucen el eje horizontal.'
+            );
+        } else {
+            steps.push(
+                'No se encontraron raíces mediante la búsqueda numérica en [−25, 25].'
+            );
+
+            steps.push(
+                'Esto no demuestra que la ecuación carezca de soluciones.'
+            );
+        }
+
+        return {
+            type: 'Resolución numérica',
+            steps,
+            roots,
+            interval: { min: -25, max: 25 }
+        };
+    }
+
+    // ---------------------------------------------------------
+    // PUNTO DE ENTRADA
+    //
+    // mode:
+    // auto, arithmetic, linear, quadratic, polynomial,
+    // factor, powers, function, numeric
+    // ---------------------------------------------------------
+
+    function solve(input, xValue, mode = 'auto') {
+        const raw = validateInput(input);
+        const selectedMode = mode || 'auto';
+
+        switch (selectedMode) {
+            case 'auto':
+                if (hasEquality(raw)) {
+                    return solveEquationAuto(raw);
+                }
+
+                return evaluateExpression(
+                    raw,
+                    xValue,
+                    'arithmetic'
+                );
+
+            case 'arithmetic':
+                if (hasEquality(raw)) {
+                    throw new Error(
+                        'El modo aritmético espera una operación sin signo igual.'
+                    );
+                }
+
+                return evaluateExpression(
+                    raw,
+                    xValue,
+                    'arithmetic'
+                );
+
+            case 'linear': {
+                const info = getEquationInfo(raw);
+
+                if (info.degreeInfo.degree !== 1) {
+                    throw new Error(
+                        'El modo lineal necesita una ecuación de primer grado, por ejemplo 2x + 7 = 19.'
+                    );
+                }
+
+                return solveLinear(
+                    info.degreeInfo.a,
+                    info.degreeInfo.b,
+                    info.left,
+                    info.right
+                );
+            }
+
+            case 'quadratic': {
+                const info = getEquationInfo(raw);
+
+                if (info.degreeInfo.degree !== 2) {
+                    throw new Error(
+                        'El modo cuadrático necesita una ecuación de segundo grado, por ejemplo x^2 - 5x + 6 = 0.'
+                    );
+                }
+
+                return solveQuadratic(
+                    info.degreeInfo.a,
+                    info.degreeInfo.b,
+                    info.degreeInfo.c
+                );
+            }
+
+            case 'polynomial':
+                return analyzePolynomial(raw);
+
+            case 'factor':
+                return factorQuadratic(raw);
+
+            case 'powers':
+                if (hasEquality(raw)) {
+                    throw new Error(
+                        'El modo de potencias y raíces espera una expresión sin signo igual.'
+                    );
+                }
+
+                return evaluateExpression(
+                    raw,
+                    xValue,
+                    'arithmetic'
+                );
+
+            case 'function':
+                if (hasEquality(raw)) {
+                    throw new Error(
+                        'Para evaluar una función, escribe una expresión como x^2 + 3x y utiliza el campo del valor de x.'
+                    );
+                }
+
+                return evaluateExpression(
+                    raw,
+                    xValue,
+                    'function'
+                );
+
+            case 'numeric':
+                if (!hasEquality(raw)) {
+                    throw new Error(
+                        'Escribe una ecuación con signo igual para buscar raíces numéricamente.'
+                    );
+                }
+
+                return solveNumeric(raw);
+
+            default:
+                throw new Error(
+                    'Selecciona un tipo de operación válido.'
+                );
+        }
+    }
+
+    global.Solver = {
+        solve,
+        sampleDegree
+    };
 
 })(window);
 
