@@ -622,302 +622,324 @@
     return value;
   }
 
+
 function parseUniversal() {
-return safeRun(() => {
-if (!universalGraph) {
-throw new Error('La gráfica universal no está disponible.');
-}
-
-
-const raw = $id('universalExpr')?.value.trim() || '';
-
-if (!raw) {
-  throw new Error('Escribe una función o ecuación para graficar.');
-}
-
-const expression = normalizeEquation(raw);
-const modeSelect = $id('graphMode');
-const requestedMode = modeSelect?.value || 'auto';
-
-let mode = requestedMode;
-
-// Detectar automáticamente el tipo de gráfica.
-if (mode === 'auto') {
-  if (
-    /^\s*x\s*=/.test(expression) &&
-    /,\s*y\s*=/.test(expression)
-  ) {
-    mode = 'parametric';
-  } else if (
-    /^\s*r\s*\^?\s*2\s*=/.test(expression) ||
-    /^\s*r\s*=/.test(expression)
-  ) {
-    mode = 'polar';
-  } else {
-    mode = 'cartesian';
-  }
-}
-
-// Leer los límites actuales.
-let min = evaluateParameter($id('graphMin')?.value, -10);
-let max = evaluateParameter($id('graphMax')?.value, 10);
-
-// Si los límites son inválidos, utilizar valores adecuados
-// para el tipo de gráfica seleccionado.
-if (
-  !Number.isFinite(min) ||
-  !Number.isFinite(max) ||
-  max <= min
-) {
-  if (mode === 'polar' || mode === 'parametric') {
-    min = 0;
-    max = Math.PI * 2;
-  } else {
-    min = -10;
-    max = 10;
-  }
-
-  if ($id('graphMin')) {
-    $id('graphMin').value = String(min);
-  }
-
-  if ($id('graphMax')) {
-    $id('graphMax').value = mode === 'polar' || mode === 'parametric'
-      ? '2pi'
-      : '10';
-
-    if (mode === 'cartesian') {
-      $id('graphMin').value = '-10';
+  return safeRun(() => {
+    if (!universalGraph) {
+      throw new Error('La gráfica universal no está disponible.');
     }
-  }
-}
 
-const quality = Math.max(
-  300,
-  Math.min(3000, number($id('graphQuality')?.value, 1200))
-);
+    const raw = $id('universalExpr')?.value.trim() || '';
 
-// Limpiar los elementos anteriores.
+    if (!raw) {
+      throw new Error('Escribe una función o ecuación para graficar.');
+    }
+
+    const expression = normalizeEquation(raw);
+    const requestedMode = $id('graphMode')?.value || 'auto';
+
+    let mode = requestedMode;
+
+    // Detectar automáticamente el tipo de expresión.
+    if (mode === 'auto') {
+      if (/^\s*x\s*=/.test(expression) && /,\s*y\s*=/.test(expression)) {
+        mode = 'parametric';
+      } else if (/^\s*r\s*\^?\s*2\s*=/.test(expression) || /^\s*r\s*=/.test(expression)) {
+        mode = 'polar';
+      } else {
+        mode = 'cartesian';
+      }
+    }
+
+    if (!['cartesian', 'polar', 'parametric'].includes(mode)) {
+      throw new Error('Selecciona un modo de gráfica válido.');
+    }
+
+    // Leer y validar los límites.
+    let min = evaluateParameter($id('graphMin')?.value, -10);
+    let max = evaluateParameter($id('graphMax')?.value, 10);
+
+    if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) {
+      if (mode === 'polar' || mode === 'parametric') {
+        min = 0;
+        max = 2 * Math.PI;
+      } else {
+        min = -10;
+        max = 10;
+      }
+    }
+
+    const minInput = $id('graphMin');
+    const maxInput = $id('graphMax');
+
+    if (minInput) minInput.value = String(min);
+    if (maxInput) maxInput.value = String(max);
+
+    const quality = Math.max(
+      300,
+      Math.min(3000, number($id('graphQuality')?.value, 1200))
+    );
+
+// Limpiar la gráfica anterior.
 universalGraph.clearCurves();
 universalGraph.clearParametrics();
 universalGraph.clearPoints();
+
+if (typeof universalGraph.clearImplicit === 'function') {
+  universalGraph.clearImplicit();
+}
+
 universalGraph.asymptotes = [];
 
-// ================================================
-// MODO CARTESIANO
-// ================================================
+    // -----------------------------------------
+    // MODO CARTESIANO
+    // -----------------------------------------
+    if (mode === 'cartesian') {
+      let source = expression;
+      let equationLabel = '';
+      let findEquationRoots = false;
 
-if (mode === 'cartesian') {
-  let source = expression;
-  let equationLabel = '';
+      // Función explícita: y = f(x).
+      const yEquation = source.match(/^\s*y\s*=\s*(.+)\s*$/);
 
-  const yEquation = source.match(
-    /^\s*y\s*=\s*(.+)\s*$/
-  );
+      if (yEquation) {
+        source = yEquation[1].trim();
+      } else {
+        const equalIndex = source.indexOf('=');
 
-  if (yEquation) {
-    source = yEquation[1].trim();
-  } else {
-    const equalIndex = source.indexOf('=');
+        // Ecuación general de una variable: izquierda = derecha.
+        if (equalIndex !== -1) {
+          if (source.indexOf('=', equalIndex + 1) !== -1) {
+            throw new Error('Utiliza una sola igualdad.');
+          }
 
-    if (equalIndex !== -1) {
-      if (source.indexOf('=', equalIndex + 1) !== -1) {
-        throw new Error(
-          'Utiliza una sola igualdad, por ejemplo: 2x-9=0.'
-        );
-      }
+          const left = source.slice(0, equalIndex).trim();
+          const right = source.slice(equalIndex + 1).trim();
 
-      const left = source.slice(0, equalIndex).trim();
-      const right = source.slice(equalIndex + 1).trim();
+          if (!left || !right) {
+            throw new Error('Completa ambos lados de la ecuación.');
+          }
 
-      if (!left || !right) {
-        throw new Error(
-          'Completa ambos lados de la ecuación.'
-        );
-      }
-
-      source = `((${left})-(${right}))`;
-      equationLabel = `${left} = ${right}`;
-    }
-  }
-
-  if (!source || source.includes('=')) {
-    throw new Error(
-      'Escribe una función como y=sin(x) o una ecuación como x^2-4=0.'
-    );
-  }
-
-  const compiled = compile(source);
-  const graphFunction = asGraphFunction(compiled);
-
-  universalGraph.addCurve(graphFunction);
-
-  if (equationLabel && M && typeof M.findRoots === 'function') {
-    const roots = M.findRoots(compiled, min, max, quality);
-
-    roots.forEach(root => {
-      universalGraph.addPoint(
-        root,
-        0,
-        '#ff2fba',
-        5,
-        `x=${fmt(root, 4)}`
-      );
-    });
-
-    setText(
-      'universalInfo',
-      roots.length
-        ? `${equationLabel} · Raíces: ${roots.map(root => fmt(root, 4)).join(', ')}`
-        : `${equationLabel} · No se encontraron raíces en el intervalo seleccionado.`
-    );
-  } else {
-    setText('universalInfo', `y = ${source}`);
-  }
-}
-
-// ================================================
-// MODO POLAR
-// ================================================
-
-else if (mode === 'polar') {
-  const squared = expression.match(
-    /^\s*r\s*\^?\s*2\s*=\s*(.+)\s*$/
-  );
-
-  const ordinary = expression.match(
-    /^\s*r\s*=\s*(.+)\s*$/
-  );
-
-  let radialSource;
-  let isSquared = false;
-
-  if (squared) {
-    radialSource = squared[1].trim();
-    isSquared = true;
-  } else if (ordinary) {
-    radialSource = ordinary[1].trim();
-  } else {
-    throw new Error(
-      'Para una gráfica polar, escribe r=expresión o r^2=expresión.'
-    );
-  }
-
-  if (!radialSource || radialSource.includes('=')) {
-    throw new Error(
-      'La expresión polar contiene una igualdad inesperada.'
-    );
-  }
-
-  const radialFn = compile(radialSource);
-
-  function radius(theta, sign = 1) {
-    const value = radialFn.evaluate({
-      theta,
-      t: theta
-    });
-
-    if (!Number.isFinite(value)) {
-      return NaN;
-    }
-
-    if (isSquared) {
-      if (value < 0) return NaN;
-      return sign * Math.sqrt(value);
-    }
-
-    return value;
-  }
-
-  universalGraph.addParametric(
-    theta => radius(theta) * Math.cos(theta),
-    theta => radius(theta) * Math.sin(theta),
-    min,
-    max,
-    '#8a5cff',
-    2.7
-  );
-
-  if (isSquared) {
-    universalGraph.addParametric(
-      theta => radius(theta, -1) * Math.cos(theta),
-      theta => radius(theta, -1) * Math.sin(theta),
-      min,
-      max,
-      '#ff2fba',
-      2.3
-    );
-  }
-
-  setText(
-    'universalInfo',
-    `${isSquared ? 'r²' : 'r'} = ${radialSource}`
-  );
-}
-
-// ================================================
-// MODO PARAMÉTRICO
-// ================================================
-
-else if (mode === 'parametric') {
-  const match = expression.match(
-    /^\s*x\s*=\s*(.+?)\s*,\s*y\s*=\s*(.+?)\s*$/
-  );
-
-  if (!match) {
-    throw new Error(
-      'Formato paramétrico incorrecto. Escribe: x=cos(t), y=sin(t).'
-    );
-  }
-
-  const xSource = match[1].trim();
-  const ySource = match[2].trim();
+// Detectar ecuaciones implícitas que contienen la variable y.
+if (/\by\b/i.test(left) || /\by\b/i.test(right)) {
+  const compiledLeft = compile(left);
+  const compiledRight = compile(right);
 
   if (
-    !xSource ||
-    !ySource ||
-    xSource.includes('=') ||
-    ySource.includes('=')
+    typeof universalGraph.addImplicit !== 'function' ||
+    typeof compiledLeft.evaluate !== 'function' ||
+    typeof compiledRight.evaluate !== 'function'
   ) {
     throw new Error(
-      'Escribe una expresión válida para x y otra para y.'
+      'El motor de gráficas implícitas no está disponible. Revisa graph.js y parser.js.'
     );
   }
 
-  const xFn = compile(xSource);
-  const yFn = compile(ySource);
-
-  universalGraph.addParametric(
-    t => xFn.evaluate({ t }),
-    t => yFn.evaluate({ t }),
-    min,
-    max,
-    '#8a5cff',
+  universalGraph.addImplicit(
+    (x, y) => {
+      try {
+        return (
+          compiledLeft.evaluate({ x, y }) -
+          compiledRight.evaluate({ x, y })
+        );
+      } catch (error) {
+        return NaN;
+      }
+    },
+    '#5dd8ff',
     2.7
   );
 
-  setText(
-    'universalInfo',
-    `x(t) = ${xSource} · y(t) = ${ySource}`
-  );
-} else {
-  throw new Error(
-    'Selecciona un modo cartesiano, polar o paramétrico válido.'
-  );
-}
-
+setText('universalInfo', `Ecuación implícita: ${left} = ${right}`);
 setText('qualityValue', quality);
 setText('universalMode', mode.toUpperCase());
 
 universalGraph.draw();
 
 toast('Gráfica actualizada');
-
 return true;
 
-
-}, null, 'Graficador universal');
 }
+
+source = `((${left})-(${right}))`;
+equationLabel = `${left} = ${right}`;
+findEquationRoots = true;
+        }
+      }
+
+      if (!source || source.includes('=')) {
+        throw new Error(
+          'Escribe una función como y=sin(x) o una ecuación como x^2-4=0.'
+        );
+      }
+
+      const compiled = compile(source);
+      const graphFunction = asGraphFunction(compiled);
+
+      if (findEquationRoots) {
+        if (!M || typeof M.findRoots !== 'function') {
+          throw new Error('El buscador de raíces no está disponible.');
+        }
+
+        // Las ecuaciones se muestran como raíces sobre el eje X,
+        // no como una curva adicional.
+const roots = M.findRoots(
+  x => compiled.at(x),
+  min,
+  max,
+  quality
+).filter(Number.isFinite);
+
+        roots.forEach(root => {
+          universalGraph.addPoint(
+            root,
+            0,
+            '#ff2fba',
+            5,
+            `x=${fmt(root, 4)}`
+          );
+        });
+
+        setText(
+          'universalInfo',
+          roots.length
+            ? `${equationLabel} · Raíces encontradas: ${roots.map(root => fmt(root, 4)).join(', ')}`
+            : `${equationLabel} · No se encontraron raíces en el intervalo.`
+        );
+      } else {
+        // Comprobar que la expresión puede evaluarse al menos
+        // en algún punto del intervalo antes de dibujarla.
+        let validSamples = 0;
+        const sampleCount = 20;
+
+        for (let i = 0; i <= sampleCount; i++) {
+          const x = min + (max - min) * i / sampleCount;
+          const y = graphFunction(x);
+
+          if (Number.isFinite(y)) validSamples++;
+        }
+
+        if (validSamples === 0) {
+          throw new Error(
+            'La función no produjo valores válidos en el intervalo seleccionado.'
+          );
+        }
+
+        universalGraph.addCurve(graphFunction);
+
+        setText('universalInfo', `y = ${source}`);
+      }
+    }
+
+    // -----------------------------------------
+    // MODO POLAR
+    // -----------------------------------------
+    else if (mode === 'polar') {
+      const squared = expression.match(/^\s*r\s*\^?\s*2\s*=\s*(.+)\s*$/);
+      const ordinary = expression.match(/^\s*r\s*=\s*(.+)\s*$/);
+
+      let radialSource;
+      let isSquared = false;
+
+      if (squared) {
+        radialSource = squared[1].trim();
+        isSquared = true;
+      } else if (ordinary) {
+        radialSource = ordinary[1].trim();
+      } else {
+        throw new Error(
+          'En modo polar, escribe r=expresión o r^2=expresión.'
+        );
+      }
+
+      if (!radialSource || radialSource.includes('=')) {
+        throw new Error('La expresión polar no es válida.');
+      }
+
+      const radialFn = compile(radialSource);
+
+      function radius(theta, sign = 1) {
+        const value = radialFn.evaluate({ theta, t: theta });
+
+        if (!Number.isFinite(value)) return NaN;
+
+        if (isSquared) {
+          if (value < 0) return NaN;
+          return sign * Math.sqrt(value);
+        }
+
+        return value;
+      }
+
+      universalGraph.addParametric(
+        theta => radius(theta) * Math.cos(theta),
+        theta => radius(theta) * Math.sin(theta),
+        min,
+        max,
+        '#8a5cff',
+        2.7
+      );
+
+      if (isSquared) {
+        universalGraph.addParametric(
+          theta => radius(theta, -1) * Math.cos(theta),
+          theta => radius(theta, -1) * Math.sin(theta),
+          min,
+          max,
+          '#ff2fba',
+          2.3
+        );
+      }
+
+      setText('universalInfo', `${isSquared ? 'r²' : 'r'} = ${radialSource}`);
+    }
+
+    // -----------------------------------------
+    // MODO PARAMÉTRICO
+    // -----------------------------------------
+    else if (mode === 'parametric') {
+      const match = expression.match(
+        /^\s*x\s*=\s*(.+?)\s*,\s*y\s*=\s*(.+?)\s*$/
+      );
+
+      if (!match) {
+        throw new Error(
+          'Formato incorrecto. Ejemplo: x=3cos(t), y=2sin(t).'
+        );
+      }
+
+      const xSource = match[1].trim();
+      const ySource = match[2].trim();
+
+      if (!xSource || !ySource || xSource.includes('=') || ySource.includes('=')) {
+        throw new Error('Comprueba las expresiones de x(t) e y(t).');
+      }
+
+      const xFn = compile(xSource);
+      const yFn = compile(ySource);
+
+      universalGraph.addParametric(
+        t => xFn.evaluate({ t }),
+        t => yFn.evaluate({ t }),
+        min,
+        max,
+        '#8a5cff',
+        2.7
+      );
+
+      setText('universalInfo', `x(t) = ${xSource} · y(t) = ${ySource}`);
+    }
+
+    setText('qualityValue', quality);
+    setText('universalMode', mode.toUpperCase());
+
+    universalGraph.draw();
+
+    toast('Gráfica actualizada');
+    return true;
+  }, null, 'Graficador universal');
+}
+
 
 /* =========================================
 AYUDA DEL GRAFICADOR UNIVERSAL
@@ -957,20 +979,25 @@ setGraphHelpVisibility(false);
 
   const clearUniversalButton = $id('universalClear');
 
-  if (clearUniversalButton) {
-    clearUniversalButton.addEventListener('click', () => {
-      if (!universalGraph) return;
+if (clearUniversalButton) {
+  clearUniversalButton.addEventListener('click', () => {
+    if (!universalGraph) return;
 
-      universalGraph.clearCurves();
-      universalGraph.clearParametrics();
-      universalGraph.clearPoints();
-      universalGraph.asymptotes = [];
-      universalGraph.draw();
+    universalGraph.clearCurves();
+    universalGraph.clearParametrics();
+    universalGraph.clearPoints();
 
-      setText('universalInfo', 'Gráfica limpiada.');
-      toast('Lienzo limpiado');
-    });
-  }
+    if (typeof universalGraph.clearImplicit === 'function') {
+      universalGraph.clearImplicit();
+    }
+
+    universalGraph.asymptotes = [];
+    universalGraph.draw();
+
+    setText('universalInfo', 'Gráfica limpiada.');
+    toast('Lienzo limpiado');
+  });
+}
 
   $$('.mini-chip[data-expr]').forEach(button => {
     button.addEventListener('click', () => {
