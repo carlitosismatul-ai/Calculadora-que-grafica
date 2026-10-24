@@ -1371,32 +1371,52 @@ $$('.mini-chip[data-solve]').forEach(button => {
   }
 
   function renderGameProblem(problem) {
-    state.currentProblem = problem;
-    state.gameLocked = false;
+state.currentProblem = problem;
+state.gameLocked = false;
 
-    setText('gameProblem', getProblemText(problem));
-    setText(
-      'gameCategory',
-      String(getProblemCategory(problem)).toUpperCase()
-    );
+// Reiniciar el registro de errores para el nuevo reto.
+if (problem && typeof problem === 'object') {
+delete problem.errorRegistrado;
+}
 
-    setText('gameFeedback', '');
-    setText('gameSteps', '');
+setText('gameProblem', getProblemText(problem));
 
-    const answer = $id('gameAnswer');
+setText(
+'gameCategory',
+String(getProblemCategory(problem)).toUpperCase()
+);
 
-    if (answer) {
-      answer.value = '';
-      answer.disabled = false;
-    }
+setText('gameFeedback', '');
+setText('gameSteps', '');
 
-    const submit = $id('gameSubmit');
+const answer = $id('gameAnswer');
 
-    if (submit) {
-      submit.disabled = false;
-      submit.textContent = 'Verificar';
-    }
-  }
+if (answer) {
+answer.value = '';
+answer.disabled = false;
+}
+
+const submit = $id('gameSubmit');
+
+if (submit) {
+submit.disabled = false;
+submit.textContent = 'Verificar';
+}
+
+const steps = $id('gameSteps');
+
+if (steps) {
+steps.replaceChildren();
+steps.style.removeProperty('display');
+steps.style.removeProperty('visibility');
+steps.style.removeProperty('opacity');
+steps.style.removeProperty('height');
+steps.style.removeProperty('max-height');
+steps.style.removeProperty('overflow');
+steps.hidden = false;
+}
+}
+
 
   function newGameProblem() {
     if (!GM || typeof GM.randomProblem !== 'function') {
@@ -1443,81 +1463,115 @@ $$('.mini-chip[data-solve]').forEach(button => {
     return user.toLowerCase() === expected.toLowerCase();
   }
 
-  function checkGameAnswer() {
-    if (!state.currentProblem || state.gameLocked) return;
+ function checkGameAnswer() {
+if (!state.currentProblem || state.gameLocked) return;
 
-    const input = $id('gameAnswer');
-    if (!input) return;
+const input = $id('gameAnswer');
+if (!input) return;
 
-    const answer = input.value.trim();
+const answer = input.value.trim();
 
-    if (!answer) {
-      setText('gameFeedback', 'Escribe una respuesta primero.');
-      return;
-    }
+if (!answer) {
+setText('gameFeedback', 'Escribe una respuesta primero.');
+return;
+}
 
-    let correct = false;
+let correct = false;
 
-    try {
-      if (GM && typeof GM.checkAnswer === 'function') {
-        const result = GM.checkAnswer(answer, state.currentProblem);
+try {
+if (GM && typeof GM.checkAnswer === 'function') {
+const result = GM.checkAnswer(answer, state.currentProblem);
 
-        if (typeof result === 'boolean') {
-          correct = result;
-        } else if (result && typeof result === 'object') {
-          correct = Boolean(
-            result.correct ??
-            result.isCorrect ??
-            result.ok
-          );
-        } else {
-          correct = Boolean(result);
-        }
-      } else {
-        const expected =
-          state.currentProblem.answer ??
-          state.currentProblem.respuesta ??
-          state.currentProblem.correctAnswer;
 
-        correct = compareAnswers(answer, expected);
-      }
-    } catch (error) {
-      console.error('Error verificando respuesta:', error);
-
-      setText(
-        'gameFeedback',
-        'No se pudo verificar la respuesta. Inténtalo otra vez.'
-      );
-
-      return;
-    }
-
-    state.gameLocked = true;
-    input.disabled = true;
-
-    const submit = $id('gameSubmit');
-
-    if (submit) submit.disabled = true;
-
-    if (correct) {
-      state.correct++;
-      state.streak++;
-      state.xp += 10 * state.gameLevel;
-
-      setText('gameFeedback', '¡Correcto! +XP');
-      toast('¡Respuesta correcta!');
-    } else {
-      state.wrong++;
-      state.streak = 0;
-
-      setText(
-        'gameFeedback',
-        'No es correcto. Puedes consultar la solución.'
-      );
-    }
-
-    updateScoreboard();
+  if (typeof result === 'boolean') {
+    correct = result;
+  } else if (result && typeof result === 'object') {
+    correct = Boolean(
+      result.correct ??
+      result.isCorrect ??
+      result.ok
+    );
+  } else {
+    correct = Boolean(result);
   }
+} else {
+  const expected =
+    state.currentProblem.answer ??
+    state.currentProblem.respuesta ??
+    state.currentProblem.correctAnswer;
+
+  correct = compareAnswers(answer, expected);
+}
+
+
+} catch (error) {
+console.error('Error verificando respuesta:', error);
+
+
+setText(
+  'gameFeedback',
+  'No se pudo verificar la respuesta. Inténtalo otra vez.'
+);
+
+return;
+
+
+}
+
+const submit = $id('gameSubmit');
+
+if (correct) {
+// Bloquear solamente cuando la respuesta sea correcta.
+state.gameLocked = true;
+
+
+state.correct++;
+state.streak++;
+state.xp += 10 * state.gameLevel;
+
+input.disabled = true;
+
+if (submit) {
+  submit.disabled = true;
+  submit.textContent = 'Correcto';
+}
+
+setText('gameFeedback', '¡Correcto! +XP');
+toast('¡Respuesta correcta!');
+
+updateScoreboard();
+return;
+
+
+}
+
+// Registrar el error una sola vez por reto.
+if (!state.currentProblem.errorRegistrado) {
+state.currentProblem.errorRegistrado = true;
+state.wrong++;
+state.streak = 0;
+
+updateScoreboard();
+
+
+}
+
+// Mantener el reto abierto para permitir otro intento.
+state.gameLocked = false;
+input.disabled = false;
+
+if (submit) {
+submit.disabled = false;
+submit.textContent = 'Intentar de nuevo';
+}
+
+setText(
+'gameFeedback',
+'❌ No es correcto. Revisa tu respuesta e inténtalo de nuevo.'
+);
+
+input.focus();
+}
 
  
   function showGameSolution() {
