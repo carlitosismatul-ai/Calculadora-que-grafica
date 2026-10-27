@@ -754,6 +754,11 @@
             let drawing = false;
             let previousY = null;
 
+            // Margen para evitar dibujar segmentos muy alejados
+            // de la zona visible del canvas.
+            const margin = this.h * 2;
+            const jumpLimit = this.h * 0.35;
+
             for (let px = 0; px <= this.w; px += 1) {
                 const world = this.screenToWorld(px, 0);
                 let y;
@@ -764,13 +769,15 @@
                     y = NaN;
                 }
 
+                // Si la función no está definida, separar los tramos.
                 if (!Number.isFinite(y)) {
                     drawing = false;
                     previousY = null;
                     continue;
                 }
 
-                const py = this.worldToScreen(world.x, y).y;
+                const point = this.worldToScreen(world.x, y);
+                const py = point.y;
 
                 if (!Number.isFinite(py)) {
                     drawing = false;
@@ -778,12 +785,23 @@
                     continue;
                 }
 
-                // Evita conectar saltos enormes, por ejemplo en asíntotas.
+                // No unir puntos separados por un salto excesivo.
                 if (
                     previousY !== null &&
-                    Math.abs(py - previousY) > this.h * 0.75
+                    Math.abs(py - previousY) > jumpLimit
                 ) {
                     drawing = false;
+                }
+
+                // Si el punto está muy lejos del área visible,
+                // no dibujar segmentos enormes fuera del canvas.
+                if (
+                    py < -margin ||
+                    py > this.h + margin
+                ) {
+                    drawing = false;
+                    previousY = py;
+                    continue;
                 }
 
                 if (!drawing) {
@@ -799,7 +817,6 @@
             ctx.stroke();
             ctx.restore();
         }
-
         _parametric(curve) {
             const ctx = this.ctx;
             const samples = Math.max(
